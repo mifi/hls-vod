@@ -96,7 +96,7 @@ var spawnNewProcess = function(file, playlistPath) {
 var pollForPlaylist = function(file, response, playlistPath) {
 	var numTries = 0;
 	var tryOpenFile = function() {
-		if (numTries > 5) {
+		if (numTries > 20) {
 			console.log('Gave up trying to open m3u8 file');
 			response.writeHead(500);
 			response.end();
@@ -105,7 +105,7 @@ var pollForPlaylist = function(file, response, playlistPath) {
 			fs.readFile(playlistPath, function (err, data) {
 				if (err) {
 					numTries++;
-					setTimeout(tryOpenFile, 1000);
+					setTimeout(tryOpenFile, 500);
 				}
 				else {
 					if (!debug) {
