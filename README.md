@@ -30,9 +30,9 @@ browse to http://localhost:4040/list
 
 Usage:
 ------
---root-path: Root path allowed to read files in
+--root-path: Root path allowed to read files in.
 --search-path: Add path to search in.
---vlc-path: VLC executable path (default /usr/bin/vlc)
+--vlc-path: VLC executable path (default /usr/bin/vlc).
 
 Limitations
 -----------
