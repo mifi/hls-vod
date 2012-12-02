@@ -20,18 +20,18 @@ Dependencies
 
 Installation / Running
 ============
-Make sure you have node.js and VLC installed
-npm install validator
-npm install wrench
-
-node hls-vod.js vlc-path /usr/bin/vlc --root-path /mnt/videos --search-path /mnt/videos/tv-shows --search-path /mnt/videos/new
-
-browse to http://localhost:4040/list
+- Make sure you have node.js and VLC installed
+- npm install validator
+- npm install wrench
+- node hls-vod.js vlc-path /usr/bin/vlc --root-path /mnt/videos --search-path /mnt/videos/tv-shows --search-path /mnt/videos/new
+- Browse to http://localhost:4040/list
 
 Usage:
 ------
 --root-path: Root path allowed to read files in.
+
 --search-path: Add path to search in.
+
 --vlc-path: VLC executable path (default /usr/bin/vlc).
 
 Limitations
