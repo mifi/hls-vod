@@ -261,8 +261,9 @@ var handleHttpRequest = function(request, response) {
 var exitWithUsage = function(argv) {
 	console.log('Usage: ' + argv[0] + ' ' + argv[1]
 		+ ' --root-path PATH'
-		+ ' --search-path PATH1 [--search-path PATH2 [...]]');
-		+ ' [--vlc-path PATH]'
+		+ ' --search-path PATH1 [--search-path PATH2 [...]]'
+		+ ' [--port PORT]'
+		+ ' [--vlc-path PATH]');
 	process.exit();
 }
 
@@ -291,6 +292,15 @@ for (var i=2; i<process.argv.length; i++) {
 
 		searchPaths.push(process.argv[++i]);
 		break;
+
+		case '--port':
+		if (process.argv.length <= i+1) {
+			exitWithUsage(process.argv);
+		}
+
+		listenPort = parseInt(process.argv[++i]);
+		break;
+
 		
 		default:
 		console.log(process.argv[i]);
