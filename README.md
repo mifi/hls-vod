@@ -24,14 +24,16 @@ Installation / Running
 - npm install
 - cd hls-vod
 - mkdir cache
-- node hls-vod.js --vlc-path /usr/bin/vlc --root-path /mnt/videos --search-path /mnt/videos/tv-shows --search-path /mnt/videos/new
+- node hls-vod.js --port 4040 --vlc-path /usr/bin/vlc --root-path /mnt/videos --search-path /mnt/videos/tv-shows --search-path /mnt/videos/new
 - Browse to http://localhost:4040/list
 
 Usage:
 ------
+--port: Listen to this port.
+
 --root-path: Root path allowed to read files in.
 
---search-path: Add path to search in.
+--search-path: Add path to search in. Must lie under root-path.
 
 --vlc-path: VLC executable path (default /usr/bin/vlc).
 
