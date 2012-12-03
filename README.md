@@ -9,7 +9,7 @@ It is built on node.js.
 
 Requirements
 ============
-Only tested on Linux, but it might work on Windows too.
+Tested on Linux and Mac, but it might work on Windows too.
 
 Dependencies
 ============
