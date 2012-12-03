@@ -25,7 +25,7 @@ Installation / Running
 - npm install wrench
 - cd hls-vod
 - mkdir cache
-- node hls-vod.js vlc-path /usr/bin/vlc --root-path /mnt/videos --search-path /mnt/videos/tv-shows --search-path /mnt/videos/new
+- node hls-vod.js --vlc-path /usr/bin/vlc --root-path /mnt/videos --search-path /mnt/videos/tv-shows --search-path /mnt/videos/new
 - Browse to http://localhost:4040/list
 
 Usage:
