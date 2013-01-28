@@ -3,6 +3,7 @@
 	"version": "0.0.1",
 	"dependencies": {
 		"wrench": "1.4.4",
-		"validator": "0.4.19"
+		"validator": "0.4.19",
+		"express":"3.0.4"
 	}
 }

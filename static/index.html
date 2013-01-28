@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title></title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<script type="text/javascript" src="jquery-1.8.3.min.js"></script>
+<script type="text/javascript" src="prefixfree.min.js"></script>
+<!--<script type="text/javascript" src="jquery.transition.min.js"></script>
+<script type="text/javascript" src="json2.js"></script>-->
+
+<!--<link rel="apple-touch-startup-image" href="splash.png" />
+<link rel="apple-touch-icon" sizes="72x72" href="apple-touch-icon-144x144.png" />
+<link rel="apple-touch-icon" sizes="114x114" href="apple-touch-icon-114x114.png" />
+<link rel="stylesheet" type="text/css" href="main.css" />-->
+
+<style type="text/css">
+body {
+	background-color: #eee;
+	color: black;
+	-webkit-overflow-scrolling: touch;
+}
+a, a:visited, a:active {
+	color: #91AFA8;
+}
+#file-list {
+	list-style: none;
+	padding-left: 0;
+	margin-top: 0;
+}
+#file-list li {
+	cursor: pointer;
+	background: linear-gradient(top, #fff 0%, #eee 48%, #ddd 52%, #ccc 100%);
+	border: 1px solid #ccc;
+	text-shadow: 1px 1px #ccc;
+	color: #000;
+	font-size: 1.2em;
+	padding: .2em .5em;
+	white-space: nowrap;
+	overflow-x: auto;
+}
+#file-list li img.thumbnail {
+	height: 50px;
+	vertical-align: middle;
+	padding-right: .7em;
+}
+#dir-header {
+	background: linear-gradient(top, #fff 0%, #eee 48%, #ddd 52%, #ccc 100%);
+	border: 1px solid #ccc;
+	text-shadow: 1px 1px #ccc;
+	color: #c00;
+	font-size: 1.2em;
+	padding: .2em .5em;
+	overflow: hidden;
+}
+#settings-btn {
+	cursor: pointer;
+}
+#settings-container {
+	display: none;
+}
+video, audio {
+	margin: auto;
+	display: block;
+}
+
+::-webkit-scrollbar {
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: #e8e8e8;
+    border-radius: 12px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(51, 51, 51, .7);
+    border-radius: 12px;
+    max-width: 10px;
+}
+
+#thumbnail-viewer {
+	display: none;
+	position: fixed;
+	z-index: 10;
+	left: 3em;
+	right: 3em;
+	top: 3em;
+	padding: 1em;
+	background-color: rgba(255, 255, 255, .7);
+}
+#thumbnail-viewer img {
+	width: 100%;
+}
+
+#thumbnail-viewer .x-button {
+	position: absolute;
+	right: 0;
+	top: 0;
+	cursor: pointer;
+	font-weight: bold;
+	/*background-color: white;*/
+}
+</style>
+
+<script type="text/javascript">
+var audioStop = function() {
+	var audioPlayer = $('audio');
+	audioPlayer.prop('controls', false);
+	audioPlayer[0].pause();
+	audioPlayer.hide();
+};
+
+var videoStop = function() {
+	var videoPlayer = $('video');
+	videoPlayer[0].pause();
+	videoPlayer.hide();
+};
+
+var audioPlay = function(path) {
+	videoStop();
+
+	var audioPlayer = $('audio');
+	audioPlayer.prop('controls', true);
+	audioPlayer.show();
+
+	audioPlayer[0].src = path;
+	audioPlayer[0].load();
+	audioPlayer[0].play();
+};
+
+var videoPlay = function(path) {
+	audioStop();
+
+	var videoPlayer = $('video');
+	videoPlayer.show();
+
+	videoPlayer[0].src = path;
+	videoPlayer[0].load();
+	videoPlayer[0].play();
+//	window.open(path);
+};
+
+
+var browseTo = function(path) {
+	$('#file-list').empty().append($('<li/>').text('Loading...'));
+	
+	$('#thumbnail-viewer .x-button').click(function() {
+		$(this).parent().fadeOut(200);
+	});
+
+	$.ajax(path, {
+		success: function(data) {
+			$('#dir-header').text(data.cwd);
+
+			$('#file-list').empty();
+
+			var back = $('<li/>');
+			back.html('..');
+			back.click(function() {
+				browseTo(data.cwd != '/' ? path + '/..' : path);
+			});
+			$('#file-list').append(back);
+
+			$.each(data.files, function(index, file) {
+				var elem = $('<li/>');
+				elem.text(file.name);
+
+				switch(file.type) {
+					case 'video':
+					elem.click(function() {
+						if (confirm('Play video?')) {
+							videoPlay(file.path);
+						}
+					});
+					break;
+
+					case 'audio':
+					elem.click(function() {
+						if (confirm('Play audio?')) {
+							audioPlay(file.path);
+						}
+					});
+					break;
+
+					case 'directory':
+					elem.click(function() {
+						browseTo(file.path);
+					});
+					break;
+					
+					default:
+				}
+
+				if (file.error) {
+					elem.attr('title', file.errorMsg);
+				}
+
+				if (file.type == 'video' || file.type == 'audio') {
+					var rawLink = $('<a />').attr('href', '/raw' + file.relPath).text('[RAW]');
+					rawLink.click(function(event) {
+						event.stopPropagation();
+					});
+					elem.append(rawLink);
+				}
+
+				if (file.type == 'video') {	
+					//var thumbLink = $('<a />').attr('href', '/thumbnail' + file.relPath).text('[Thumb]').attr('target', '_blank');
+					var thumbLink = $('<span />').text('[Thumb]');
+					thumbLink.click(function(event) {
+						event.stopPropagation();
+						var path = '/thumbnail' + file.relPath;
+						$('#thumbnail-viewer img').attr('src', path).fadeIn(200);
+						$('#thumbnail-viewer').fadeIn(200);
+					});
+					elem.append(thumbLink);
+				}
+
+
+				$('#file-list').append(elem);
+			});
+		}
+	});	
+}
+
+$(function() {
+	$('audio, video').hide();
+
+	browseTo('/browse');
+
+	$('#settings-btn').click(function() {
+		$('#settings-container').fadeToggle();
+	});
+
+	$('#settings-container select[name=videoBitrate]').change(function() {
+		$.ajax('/settings', {
+			data: {
+				videoBitrate: $(this).val()
+			},
+			type: 'POST',
+			error: function() {
+				alert('Failed');
+			}
+		});
+	});
+
+	$('#settings-container input[name=enableThumbnails]').change(function() {
+		$.ajax('/settings', {
+			data: {
+				enableThumbnails: $(this).prop('checked')
+			},
+			type: 'POST',
+			error: function() {
+				alert('Failed');
+			}
+		});
+	});
+
+	$.get('/settings', function(data) {
+		$('#settings-container select[name=videoBitrate]').val(data.videoBitrate);
+		$('#settings-container input[name=enableThumbnails]').prop('checked', data.enableThumbnails);
+	});
+});
+</script>
+
+</head>
+
+<body>
+
+<audio></audio>
+
+<video controls></video>
+
+<div id="dir-header"></div>
+<ul id="file-list">
+</ul>
+
+<p><span id="settings-btn">Settings</span></p>
+<div id="settings-container">
+<form>
+	<ul>
+	<li>Bitrate:
+		<select name="videoBitrate">
+			<option value="300">300</option>
+			<option value="600">600</option>
+			<option value="1000">1000</option>
+			<option value="1500">1500</option>
+			<option value="1800">1800</option>
+		</select>
+	</li>
+	
+	<li>Thumbnails <input type="checkbox" name="enableThumbnails" /></li>
+	</ul>
+</form>
+</div>
+
+<div id="thumbnail-viewer">
+	<div class="x-button">X</div>
+	<img src="/thumbnail/videos/music_vids/Beyonce%20-%20Naughty%20Girl.flv" alt="" />
+</div>
+</body>
+</html>
