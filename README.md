@@ -24,6 +24,13 @@ VLC / ffmpeg ?
 VLC is not recommended. Thumbs and audio does not work with VLC. VLC does not transcode perfectly, causing glitches in the video stream.
 FFMPEG requires one of the latest versions, so you might need to build it. FFMPEG must be built with libx264 and libmp3lame
 
+Compiling ffmpeg
+================
+You need a fairly recent version
+hint:
+./configure --enable-libx264 --enable-libmp3lame --enable-gpl --enable-nonfree
+make -j9 && make install
+
 Installation
 ============
 - cd hls-vod
