@@ -26,8 +26,8 @@ FFMPEG requires one of the latest versions, so you might need to build it. FFMPE
 
 Installation
 ============
-- npm install
 - cd hls-vod
+- npm install
 - mkdir cache
 
 Running (with ffmpeg)
