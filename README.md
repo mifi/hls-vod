@@ -41,13 +41,13 @@ Running (with ffmpeg)
 ============
 - Make sure you have node.js and ffmpeg (>1.0)
 - node hls-vod.js --port 4040 --transcoder-type ffmpeg --transcoder-path /usr/bin/ffmpeg --root-path /mnt/videos
-- Browse to http://localhost:4040/list
+- Browse to http://localhost:4040/static/
 
 Running (with VLC)
 ============
 - Make sure you have node.js and VLC installed
 - node hls-vod.js --port 4040 --transcoder-path /usr/bin/vlc --root-path /mnt/videos
-- Browse to http://localhost:4040/list
+- Browse to http://localhost:4040/static/
 
 
 Usage:
