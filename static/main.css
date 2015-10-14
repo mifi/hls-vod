@@ -1,0 +1,89 @@
+body {
+	background-color: #eee;
+	color: black;
+	-webkit-overflow-scrolling: touch;
+}
+a, a:visited, a:active {
+	color: #91AFA8;
+}
+#file-list {
+	list-style: none;
+	padding-left: 0;
+	margin-top: 0;
+}
+#file-list li {
+	cursor: pointer;
+	background: linear-gradient(to bottom, #fff 0%, #eee 48%, #ddd 52%, #ccc 100%);
+	border: 1px solid #ccc;
+	text-shadow: 1px 1px #ccc;
+	color: #000;
+	font-size: 1.2em;
+	padding: .2em .5em;
+	white-space: nowrap;
+	overflow-x: auto;
+}
+#file-list li img.thumbnail {
+	height: 50px;
+	vertical-align: middle;
+	padding-right: .7em;
+}
+#dir-header {
+	background: linear-gradient(to bottom, #fff 0%, #eee 48%, #ddd 52%, #ccc 100%);
+	border: 1px solid #ccc;
+	text-shadow: 1px 1px #ccc;
+	color: #c00;
+	font-size: 1.2em;
+	padding: .2em .5em;
+	overflow: hidden;
+}
+#settings-btn {
+	cursor: pointer;
+}
+#settings-container {
+	display: none;
+}
+video, audio {
+	margin: auto;
+	display: block;
+}
+#video {
+	max-width: 100%;
+}
+
+::-webkit-scrollbar {
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: #e8e8e8;
+    border-radius: 12px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(51, 51, 51, .7);
+    border-radius: 12px;
+    max-width: 10px;
+}
+
+#thumbnail-viewer {
+	display: none;
+	position: fixed;
+	z-index: 10;
+	left: 3em;
+	right: 3em;
+	top: 3em;
+	padding: 1em;
+	background-color: rgba(255, 255, 255, .7);
+}
+#thumbnail-viewer img {
+	width: 100%;
+}
+
+#thumbnail-viewer .x-button {
+	position: absolute;
+	right: 0;
+	top: 0;
+	cursor: pointer;
+	font-weight: bold;
+	/*background-color: white;*/
+}

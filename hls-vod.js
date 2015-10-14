@@ -3,6 +3,7 @@ var http = require('http');
 var url = require('url');
 var fs = require('fs');
 var path = require('path');
+var readLine = require('readline');
 
 // 3rd party
 var sanitize = require('validator').sanitize;
@@ -18,11 +19,10 @@ var targetWidth = 1280;
 var searchPaths = [];
 var rootPath = null;
 var outputPath = './cache';
-var transcoderPath = '/usr/bin/vlc';
-var transcoderType = 'vlc';
+var transcoderPath = 'ffmpeg';
+var transcoderType = 'ffmpeg';
 var processCleanupTimeout = 6 * 60 * 60 * 1000;
-
-var debug = true;
+var debug = false;
 
 
 var videoExtensions = ['.mp4', '.avi', '.mkv', '.wmv', '.asf', '.m4v', '.flv', '.mpg', '.mpeg', '.mov', '.vob', '.ts'];
@@ -46,30 +46,54 @@ var encoderProcesses = {};
 var currentFile = null;
 var lock = false;
 
+function addTypeToPlaylist(filePath) {
+	var tmpFile = filePath + '.tmp';
 
-var getMimeType = function(file) {
+	var rl = readLine.createInterface({ input: fs.createReadStream(filePath) });
+	var out = fs.createWriteStream(tmpFile);
+	//out.on('error', function(err) { });
+
+	rl.on('line', function (line) {
+		if (line.match('^#EXT-X-VERSION:')) out.write('#EXT-X-PLAYLIST-TYPE:EVENT\n');
+		out.write(line + '\n');
+	});
+	rl.on('close', function() {
+		out.end();
+		fs.rename(tmpFile, filePath);
+	});
+}
+
+function getMimeType(file) {
 	var extname = path.extname(file);
 
 	if (mimeTypes[extname]) return mimeTypes[extname];
 	else return 'application/octet-stream';
 }
 
-var spawnNewProcess = function(file, playlistPath) {
+function spawnNewProcess(file, playlistPath) {
 	var outputUrlPrefix = '/segment/';
 
-	
+	var playlistFileName = 'stream.m3u8';
+
 	if (transcoderType === 'ffmpeg') {
-		//var args = ['-i', file, '-async', '1', '-b:a', 64 + 'k', '-vf', 'scale=min(' + targetWidth + '\\, iw):-1', '-b:v', videoBitrate + 'k', '-ar', '44100', '-ac', '2', '-vcodec', 'libx264', '-x264opts', 'level=3.0', '-profile:v', 'baseline', '-preset:v' ,'superfast', '-acodec', 'libaacplus', '-threads', '0', '-flags', '-global_header', '-map', '0', '-f', 'segment', '-segment_time', '10', '-segment_list', 'stream.m3u8', '-segment_format', 'mpegts', '-segment_list_flags', 'live', 'stream%05d.ts'];
-		var args = ['-i', file, '-sn', '-async', '1', '-acodec', 'libmp3lame', '-b:a', 128 + 'k', '-vf', 'scale=min(' + targetWidth + '\\, iw):-1', '-b:v', videoBitrate + 'k', '-ar', '44100', '-ac', '2', '-vcodec', 'libx264', '-x264opts', 'level=3.0', '-profile:v', 'baseline', '-preset:v' ,'superfast', '-threads', '0', '-flags', '-global_header', '-map', '0', '-f', 'segment', '-segment_time', '10', '-segment_list', 'stream.m3u8', '-segment_format', 'mpegts', '-segment_list_flags', 'live', 'stream%05d.ts'];
+		var args = [
+			'-i', file, '-sn',
+			'-async', '1', '-acodec', 'libmp3lame', '-b:a', 128 + 'k', '-ar', '44100', '-ac', '2',
+			'-vf', 'scale=min(' + targetWidth + '\\, iw):-1', '-b:v', videoBitrate + 'k', '-vcodec', 'libx264', '-profile:v', 'baseline', '-preset:v' ,'superfast',
+			'-x264opts', 'level=3.0',
+			'-threads', '0', '-flags', '-global_header', '-map', '0',
+			// https://www.ffmpeg.org/ffmpeg-formats.html#segment
+			'-f', 'segment', '-segment_time', '3', '-segment_list', playlistFileName, '-segment_format', 'mpegts', '-segment_list_flags', 'live', 'stream%05d.ts'
+			//'-f', 'hls', '-hls_time', '3', '-hls_list_size', '0', '-hls_allow_cache', '0', '-hls_segment_filename', 'stream%05d.ts', 'stream.m3u8'
+		];
 	}
 	else {
-		var playlistPath = 'stream.m3u8';
 		var outputUrl = 'stream-#####.ts';
 		var tsOutputPath = 'stream-#####.ts';
-		var args = ['-I', 'dummy', file, 'vlc://quit', '--sout=#transcode{width=' + targetWidth + ',vcodec=h264,vb=' + videoBitrate + ',venc=x264{aud,profile=baseline,level=30,preset=superfast},acodec=mp3,ab=128,channels=2,audio-sync}:std{access=livehttp{seglen=10,delsegs=false,numsegs=0,index=' + playlistPath + ',index-url=' + outputUrl + '},mux=ts{use-key-frames},dst=' + tsOutputPath + '}'];
+		var args = ['-I', 'dummy', file, 'vlc://quit', '--sout=#transcode{width=' + targetWidth + ',vcodec=h264,vb=' + videoBitrate + ',venc=x264{aud,profile=baseline,level=30,preset=superfast},acodec=mp3,ab=128,channels=2,audio-sync}:std{access=livehttp{seglen=10,delsegs=false,numsegs=0,index=' + playlistFileName + ',index-url=' + outputUrl + '},mux=ts{use-key-frames},dst=' + tsOutputPath + '}'];
 	}
 
-	var encoderChild = childProcess.spawn(transcoderPath, args, {cwd: outputPath});
+	var encoderChild = childProcess.spawn(transcoderPath, args, {cwd: outputPath, env: process.env});
 
 	console.log(transcoderPath + args);
 
@@ -86,6 +110,10 @@ var spawnNewProcess = function(file, playlistPath) {
 
 	encoderChild.on('exit', function(code) {
 		console.log('Transcoder exited with code ' + code);
+		
+		if (code == 0) {
+			addTypeToPlaylist(path.join(outputPath, playlistFileName));
+		}
 
 		delete encoderProcesses[file];
 	});
@@ -100,7 +128,7 @@ var spawnNewProcess = function(file, playlistPath) {
 	}, processCleanupTimeout);
 };
 
-var pollForPlaylist = function(file, response, playlistPath) {
+function pollForPlaylist(file, response, playlistPath) {
 	var numTries = 0;
 
 	var tryOpenFile = function() {
@@ -130,7 +158,7 @@ var pollForPlaylist = function(file, response, playlistPath) {
 	tryOpenFile();
 }
 
-var killProcess = function(processToKill, callback) {
+function killProcess(processToKill, callback) {
 	processToKill.kill();
 
 	setTimeout(function() {
@@ -142,7 +170,7 @@ var killProcess = function(processToKill, callback) {
 	});
 }
 
-var handlePlaylistRequest = function(file, response) {	
+function handlePlaylistRequest(file, response) {
 	if (!file) {
 		request.writeHead(400);
 		request.end();
@@ -188,7 +216,7 @@ var handlePlaylistRequest = function(file, response) {
 	}
 };
 
-var listFiles = function(response) {
+function listFiles(response) {
 	var searchRegex = '(' + videoExtensions.join('|') + ')$';
 
 	searchPaths.forEach(function(searchPath) {
@@ -223,7 +251,7 @@ var listFiles = function(response) {
 };
 
 
-var browseDir = function(browsePath, response) {
+function browseDir(browsePath, response) {
 	browsePath = path.join('/', browsePath); // Remove ".." etc
 	fsBrowsePath = path.join(rootPath, browsePath);
 
@@ -304,7 +332,7 @@ var browseDir = function(browsePath, response) {
 	});
 };
 
-var handleThumbnailRequest = function(file, response) {
+function handleThumbnailRequest(file, response) {
 	if (!enableThumbnails) {
 		response.setHeader('Content-Type', 'image/jpeg');
 		response.end();
@@ -316,7 +344,7 @@ var handleThumbnailRequest = function(file, response) {
 
 	var args = ['-ss', '00:00:10', '-i', fsPath, '-vf', 'scale=iw/2:-1,crop=iw:iw/2', '-f', 'image2pipe', '-vframes', '1', '-'];
 
-	var child = childProcess.spawn(transcoderPath, args, {cwd: outputPath});
+	var child = childProcess.spawn(transcoderPath, args, {cwd: outputPath, env: process.env});
 
 	if (debug) {
 		child.stderr.on('data', function(data) {
@@ -335,7 +363,7 @@ var handleThumbnailRequest = function(file, response) {
 	}, 4000);
 }
 
-var handleStaticFileRequest = function(insidePath, file, response) {
+function handleStaticFileRequest(insidePath, file, response) {
 	file = path.join('/', file);
 	var filePath = path.join(insidePath, file);
 
@@ -354,7 +382,7 @@ var handleStaticFileRequest = function(insidePath, file, response) {
 };
 
 // Problem: some clients interrupt the HTTP request and send a new one, causing the song to restart...
-var handleAudioRequest = function(relPath, request, response) {
+function handleAudioRequest(relPath, request, response) {
 	var file = path.join('/', relPath);
 	var filePath = path.join(rootPath, file);
 	var headerSent = false;
@@ -385,13 +413,17 @@ var handleAudioRequest = function(relPath, request, response) {
 }
 
 
-var exitWithUsage = function(argv) {
-	console.log('Usage: ' + argv[0] + ' ' + argv[1]
+function exitWithUsage(argv) {
+	console.log(
+		'Usage: ' + argv[0] + ' ' + argv[1]
 		+ ' --root-path PATH'
 		+ ' [--search-path PATH1 [--search-path PATH2 [...]]]'
 		+ ' [--port PORT]'
 		+ ' [--cache-dir PATH]'
-		+ ' [--transcoder-path PATH]');
+		+ ' [--transcoder-path PATH]'
+		+ ' [--transcoder-type ffmpeg|vlc]'
+		+ ' [--debug]'
+	);
 	process.exit();
 }
 
@@ -402,6 +434,7 @@ for (var i=2; i<process.argv.length; i++) {
 			exitWithUsage(process.argv);
 		}
 		transcoderPath = process.argv[++i];
+		console.log('Transcoder path ' + transcoderPath);
 		break;
 
 		case '--root-path':
@@ -440,6 +473,10 @@ for (var i=2; i<process.argv.length; i++) {
 		if (['vlc', 'ffmpeg'].indexOf(transcoderType) == -1) exitWithUsage(process.argv);
 		break;
 
+		case '--debug':
+			debug = true;
+		break;
+
 		default:
 		console.log(process.argv[i]);
 		exitWithUsage(process.argv);
@@ -453,6 +490,12 @@ if (!rootPath) {
 	exitWithUsage(process.argv);
 }
 
+fs.mkdir(outputPath, function(err, data) {
+	if (err && err.code == 'EEXIST') return;
+	else if (err) return console.log(err);
+	console.log('Created directory ' + outputPath);
+});
+
 var app = express();
 app.use(express.bodyParser());
 
@@ -461,8 +504,7 @@ app.all('*', function(request, response, next) {
 	next();
 });
 
-app.get('^/static$', function(req, res) { res.redirect('/static/'); });
-app.use('/static/', express.static(__dirname + '/static'));
+app.use('/', express.static(__dirname + '/static'));
 
 app.get(/^\/hls\/$/, function(request, response) {
 	var urlParsed = url.parse(request.url, true);
