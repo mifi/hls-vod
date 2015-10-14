@@ -1,0 +1,8 @@
+https://developer.apple.com/library/ios/documentation/NetworkingInternet/Conceptual/StreamingMediaGuide/StreamingMediaGuide.pdf
+https://developer.apple.com/library/ios/technotes/tn2288/_index.html
+
+http://jxcore.com/turn-node-applications-into-executables/
+https://github.com/jaredallard/nexe
+https://github.com/nwjs/nw.js/wiki/how-to-package-and-distribute-your-apps
+
+google "http live streaming polyfill"
