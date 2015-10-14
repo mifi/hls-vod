@@ -131,7 +131,7 @@ function spawnNewProcess(file, playlistPath) {
 function pollForPlaylist(file, response, playlistPath) {
 	var numTries = 0;
 
-	var tryOpenFile = function() {
+	function tryOpenFile() {
 		if (numTries > 20) {
 			console.log('Gave up trying to open m3u8 file');
 			response.writeHead(500);
@@ -144,10 +144,7 @@ function pollForPlaylist(file, response, playlistPath) {
 					setTimeout(tryOpenFile, 500);
 				}
 				else {
-					if (!debug) {
-						response.setHeader('Content-Type', 'application/x-mpegURL');
-					}
-					//console.log('response: ' + data);
+					response.setHeader('Content-Type', 'application/x-mpegURL');
 					response.write(data);
 					response.end();
 				}
@@ -219,6 +216,8 @@ function handlePlaylistRequest(file, response) {
 function listFiles(response) {
 	var searchRegex = '(' + videoExtensions.join('|') + ')$';
 
+	if (searchPaths.length === 0) response.end();
+
 	searchPaths.forEach(function(searchPath) {
 		wrench.readdirRecursive(searchPath, function(err, curFiles) {
 			if (err) {
@@ -266,7 +265,7 @@ function browseDir(browsePath, response) {
 		}
 
 		var filesDone = 0;
-		var fileDone = function() {
+		function fileDone() {
 			filesDone++;
 
 			if (filesDone == files.length) {
