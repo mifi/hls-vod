@@ -39,8 +39,6 @@ Arguments
 ------
 --root-path: Root path allowed to read files in.
 
---search-path: Add path to search in. Must lie under root-path.
-
 For more arguments run it without arguments: node hls-vod.js
 
 Limitations
