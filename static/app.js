@@ -1,5 +1,9 @@
 $(function() {
 	var $videoPlayer = $('#video');
+	
+	// State
+	var loading = false;
+	
 
 	function audioStop() {
 		var audioPlayer = $('audio');
@@ -31,21 +35,23 @@ $(function() {
 		$videoPlayer.show();
 
 		$videoPlayer[0].src = path;
-
-		$videoPlayer.load();
-		$videoPlayer.play();
+		$videoPlayer[0].load();
+		$videoPlayer[0].play();
 	};
 
 
 	function browseTo(path) {
-		$('#file-list').empty().append($('<li/>').text('Loading...'));
-	
+		if (loading) return;
+		loading = true;
+		
 		$('#thumbnail-viewer .x-button').click(function() {
-			$(this).parent().fadeOut(200);
+			$('#thumbnail-viewer').fadeOut(200);
 		});
 
 		$.ajax(path, {
 			success: function(data) {
+				loading = false;
+
 				$('#dir-header').text(data.cwd);
 
 				$('#file-list').empty();
@@ -140,20 +146,7 @@ $(function() {
 		});
 	});
 
-	$('#settings-container input[name=enableThumbnails]').change(function() {
-		$.ajax('/settings', {
-			data: {
-				enableThumbnails: $(this).prop('checked')
-			},
-			type: 'POST',
-			error: function() {
-				alert('Failed');
-			}
-		});
-	});
-
 	$.get('/settings', function(data) {
 		$('#settings-container select[name=videoBitrate]').val(data.videoBitrate);
-		$('#settings-container input[name=enableThumbnails]').prop('checked', data.enableThumbnails);
 	});
 });

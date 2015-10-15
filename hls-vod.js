@@ -13,7 +13,6 @@ var express = require('express');
 // Parameters
 var listenPort = 4040;
 var videoBitrate = 1000;
-var enableThumbnails = true;
 var audioBitrate = 128;
 var targetWidth = 1280;
 var searchPaths = [];
@@ -23,51 +22,45 @@ var transcoderPath = 'ffmpeg';
 var transcoderType = 'ffmpeg';
 var processCleanupTimeout = 6 * 60 * 60 * 1000;
 var debug = false;
+var playlistRetryDelay = 500;
+var playlistRetryTimeout = 60000;
+var playlistEndMinTime = 20000;
+
 
 
 var videoExtensions = ['.mp4', '.avi', '.mkv', '.wmv', '.asf', '.m4v', '.flv', '.mpg', '.mpeg', '.mov', '.vob', '.ts'];
 var audioExtensions = ['.mp3', '.aac', '.m4a'];
 
-var mimeTypes = {
-	'.mp4': 'video/mp4',
-	'.avi': 'video/x-msvideo',
-	'.mkv': 'video/x-matroska',
-	'.wmv': 'video/x-ms-wmv',
-	'.asf': 'video/x-ms-asf',
-	'.m4v': 'video/x-m4v',
-	'.flv': 'video/x-flv',
-	'.mpg': 'video/mpeg',
-	'.mov': 'video/quicktime',
-	'.ts': 'video/MP2T'
-};
-
 // Program state
 var encoderProcesses = {};
 var currentFile = null;
 var lock = false;
+var encodingStartTime = null;
 
-function addTypeToPlaylist(filePath) {
-	var tmpFile = filePath + '.tmp';
 
-	var rl = readLine.createInterface({ input: fs.createReadStream(filePath) });
-	var out = fs.createWriteStream(tmpFile);
-	//out.on('error', function(err) { });
+function withModifiedPlaylist(readStream, eachLine, done) {
+	var rl = readLine.createInterface({input: readStream});
+	
+	var foundPlaylistType = false;
 
 	rl.on('line', function (line) {
-		if (line.match('^#EXT-X-VERSION:')) out.write('#EXT-X-PLAYLIST-TYPE:EVENT\n');
-		out.write(line + '\n');
+		if (line.match('^#EXT-X-PLAYLIST-TYPE:')) foundPlaylistType = true;
+		else if (line.match('^#EXTINF:') && !foundPlaylistType) {
+			eachLine('#EXT-X-PLAYLIST-TYPE:EVENT'); // Insert the type if it does not exist (ffmpeg doesn't seem to add this). Not having this set to VOD or EVENT will lead to no scrub-bar when encoding is completed
+			foundPlaylistType = true;
+		}
+		
+		if (line.match('^#EXT-X-ENDLIST') && new Date().getTime() - encodingStartTime.getTime() < playlistEndMinTime) {
+			console.log('File was encoded too fast, skiping END tag'); // Due to what seems like a bug in Apples implementation, if #EXT-X-ENDLIST is included too fast, it seems the player will hang. Removing it will cause the player to re-fetch the playlist once more, which seems to prevent the bug.
+		}
+		else {
+			eachLine(line);
+		}
 	});
 	rl.on('close', function() {
-		out.end();
-		fs.rename(tmpFile, filePath);
+		if (debug) console.log('Done reading lines');
+		done();
 	});
-}
-
-function getMimeType(file) {
-	var extname = path.extname(file);
-
-	if (mimeTypes[extname]) return mimeTypes[extname];
-	else return 'application/octet-stream';
 }
 
 function spawnNewProcess(file, playlistPath) {
@@ -76,31 +69,42 @@ function spawnNewProcess(file, playlistPath) {
 	var playlistFileName = 'stream.m3u8';
 
 	if (transcoderType === 'ffmpeg') {
+		// https://www.ffmpeg.org/ffmpeg-formats.html#segment
+		var tsOutputFormat = 'stream%05d.ts';
 		var args = [
 			'-i', file, '-sn',
 			'-async', '1', '-acodec', 'libmp3lame', '-b:a', 128 + 'k', '-ar', '44100', '-ac', '2',
 			'-vf', 'scale=min(' + targetWidth + '\\, iw):-1', '-b:v', videoBitrate + 'k', '-vcodec', 'libx264', '-profile:v', 'baseline', '-preset:v' ,'superfast',
 			'-x264opts', 'level=3.0',
 			'-threads', '0', '-flags', '-global_header', '-map', '0',
-			// https://www.ffmpeg.org/ffmpeg-formats.html#segment
-			'-f', 'segment', '-segment_time', '3', '-segment_list', playlistFileName, '-segment_format', 'mpegts', '-segment_list_flags', 'live', 'stream%05d.ts'
-			//'-f', 'hls', '-hls_time', '3', '-hls_list_size', '0', '-hls_allow_cache', '0', '-hls_segment_filename', 'stream%05d.ts', 'stream.m3u8'
+			// '-map', '0:v:0', '-map', '0:a:1'
+			'-f', 'segment',
+			'-segment_list', playlistFileName, '-segment_format', 'mpegts', '-segment_list_flags', 'live', tsOutputFormat
+			//'-segment_time', '10', '-force_key_frames', 'expr:gte(t,n_forced*10)',
+			//'-f', 'hls', '-hls_time', '10', '-hls_list_size', '0', '-hls_allow_cache', '0', '-hls_segment_filename', tsOutputFormat, playlistFileName
 		];
 	}
 	else {
-		var outputUrl = 'stream-#####.ts';
-		var tsOutputPath = 'stream-#####.ts';
-		var args = ['-I', 'dummy', file, 'vlc://quit', '--sout=#transcode{width=' + targetWidth + ',vcodec=h264,vb=' + videoBitrate + ',venc=x264{aud,profile=baseline,level=30,preset=superfast},acodec=mp3,ab=128,channels=2,audio-sync}:std{access=livehttp{seglen=10,delsegs=false,numsegs=0,index=' + playlistFileName + ',index-url=' + outputUrl + '},mux=ts{use-key-frames},dst=' + tsOutputPath + '}'];
+		// https://wiki.videolan.org/Documentation:Streaming_HowTo/Streaming_for_the_iPhone/
+		var tsOutputFormat = 'stream#####.ts';
+		
+		var args = [
+			'-I' ,'dummy', '--no-loop', '--no-repeat', file, 'vlc://quit',
+			'--sout=#transcode{width=' + targetWidth + ',vcodec=h264,vb=' + videoBitrate + ',fps=25' +
+			//',venc=x264{aud,profile=baseline,level=30,keyint=30,ref=1,preset=superfast},' +
+			',venc=x264{aud,profile=baseline,level=30,preset=superfast},' +
+			'acodec=mp3,ab=128,channels=2,audio-sync}:std{access=livehttp{seglen=10,delsegs=false,numsegs=0,index=' + playlistFileName + ',index-url=' + tsOutputFormat + '},' +
+			'mux=ts{use-key-frames},dst=' + tsOutputFormat + '}'
+		];
 	}
 
 	var encoderChild = childProcess.spawn(transcoderPath, args, {cwd: outputPath, env: process.env});
 
-	console.log(transcoderPath + args);
+	console.log('Spawned transcoder instance');
+	if (debug) console.log(transcoderPath + ' ' + args.join(' '));
 
 	encoderProcesses[file] = encoderChild;
 	currentFile = file;
-
-	console.log('Spawned transcoder instance');
 
 	if (debug) {
 		encoderChild.stderr.on('data', function(data) {
@@ -109,10 +113,11 @@ function spawnNewProcess(file, playlistPath) {
 	}
 
 	encoderChild.on('exit', function(code) {
-		console.log('Transcoder exited with code ' + code);
-		
 		if (code == 0) {
-			addTypeToPlaylist(path.join(outputPath, playlistFileName));
+			console.log('Transcoding completed');
+		}
+		else {
+			console.log('Transcoder exited with code ' + code);
 		}
 
 		delete encoderProcesses[file];
@@ -126,31 +131,83 @@ function spawnNewProcess(file, playlistPath) {
 			killProcess(encoderProcesses[file]);
 		}
 	}, processCleanupTimeout);
-};
+}
 
 function pollForPlaylist(file, response, playlistPath) {
 	var numTries = 0;
 
+	function checkPlaylistCount(stream, cb) {
+		var rl = readLine.createInterface({ input: stream });
+		var count = 0;
+		var need = 3;
+		var found = false;
+
+		rl.on('line', function (line) {
+			if (line.match('^#EXTINF:[0-9]+')) count++;
+			if (count >= need) {
+				found = true;
+				rl.close();
+			}
+		});
+		rl.on('close', function() {
+			if (debug) {
+				if (!found) console.log('Found only ' + count + ' file(s) in playlist');
+				else console.log('Found needed ' + need + ' files in playlist!');
+			}
+
+			cb(found);
+		});
+	}
+
+	function retry() {
+		numTries++;
+		if (debug) console.log('Retrying playlist file...');		
+		setTimeout(tryOpenFile, playlistRetryDelay);
+	}
+
 	function tryOpenFile() {
-		if (numTries > 20) {
-			console.log('Gave up trying to open m3u8 file');
+		if (numTries > playlistRetryTimeout/playlistRetryDelay) {
+			console.log('Whoops! Gave up trying to open m3u8 file');
 			response.writeHead(500);
 			response.end();
 		}
 		else {
-			fs.readFile(playlistPath, function (err, data) {
-				if (err || data.length === 0) {
-					numTries++;
-					setTimeout(tryOpenFile, 500);
+			var readStream = fs.createReadStream(playlistPath);
+			readStream.on('error', function(err) {
+				if (err.code === 'ENOENT') {
+					if (debug) console.log('Playlist file does not exist.');
+					retry();
 				}
-				else {
-					response.setHeader('Content-Type', 'application/x-mpegURL');
-					response.write(data);
+				else console.log(err);
+			});
+			
+			checkPlaylistCount(readStream, function(found) {
+				if (!found) {
+					return retry();
+				}
+
+				if (debug) console.log('Found playlist file!');
+
+				var readStream2 = fs.createReadStream(playlistPath);
+
+				readStream2.on('error', function(err) {
+					console.log(err);
+					readStream2.close();
+					response.writeHead(500);
 					response.end();
-				}
+				});
+
+				response.setHeader('Content-Type', 'application/x-mpegURL');
+
+				withModifiedPlaylist(readStream2, function(line) {
+					if (debug) console.log(line);
+					response.write(line + '\n');
+				}, function() {
+					response.end();
+				});
 			});
 		}
-	};
+	}
 
 	tryOpenFile();
 }
@@ -188,6 +245,8 @@ function handlePlaylistRequest(file, response) {
 		lock = true;
 
 		console.log('New file to encode chosen');
+		
+		encodingStartTime = new Date();
 
 		// Make sure old one gets killed
 		if (encoderProcesses[currentFile]) {
@@ -211,7 +270,7 @@ function handlePlaylistRequest(file, response) {
 		console.log('We are already encoding this file');
 		pollForPlaylist(file, response, playlistPath);
 	}
-};
+}
 
 function listFiles(response) {
 	var searchRegex = '(' + videoExtensions.join('|') + ')$';
@@ -247,7 +306,7 @@ function listFiles(response) {
 			});
 		});
 	});
-};
+}
 
 
 function browseDir(browsePath, response) {
@@ -329,19 +388,14 @@ function browseDir(browsePath, response) {
 			});
 		}
 	});
-};
+}
 
 function handleThumbnailRequest(file, response) {
-	if (!enableThumbnails) {
-		response.setHeader('Content-Type', 'image/jpeg');
-		response.end();
-		return;
-	}
-
 	file = path.join('/', file);
 	var fsPath = path.join(rootPath, file);
 
-	var args = ['-ss', '00:00:10', '-i', fsPath, '-vf', 'scale=iw/2:-1,crop=iw:iw/2', '-f', 'image2pipe', '-vframes', '1', '-'];
+	// http://superuser.com/questions/538112/meaningful-thumbnails-for-a-video-using-ffmpeg
+	var args = ['-ss', '00:00:20', '-i', fsPath, '-vf', 'select=gt(scene\,0.4)', '-vf', 'scale=iw/2:-1,crop=iw:iw/2', '-f', 'image2pipe', '-vframes', '1', '-'];
 
 	var child = childProcess.spawn(transcoderPath, args, {cwd: outputPath, env: process.env});
 
@@ -362,23 +416,6 @@ function handleThumbnailRequest(file, response) {
 	}, 4000);
 }
 
-function handleStaticFileRequest(insidePath, file, response) {
-	file = path.join('/', file);
-	var filePath = path.join(insidePath, file);
-
-	var fileStream = fs.createReadStream(filePath);
-	fileStream.on('error', function(err) {
-		console.log(err);
-		response.writeHead(404);
-		response.end();
-	});
-
-	fileStream.on('open', function() {
-		response.writeHead(200, {'Content-Type': getMimeType(filePath)});
-	});
-
-	fileStream.pipe(response);
-};
 
 // Problem: some clients interrupt the HTTP request and send a new one, causing the song to restart...
 function handleAudioRequest(relPath, request, response) {
@@ -390,9 +427,11 @@ function handleAudioRequest(relPath, request, response) {
 	//var encoderChild = childProcess.spawn(transcoderPath, ['-i', filePath, '-b:a', 64 + 'k', '-ac', '2', '-acodec', 'libaacplus', '-threads', '0', '-f', 'adts', '-']);
 	var encoderChild = childProcess.spawn(transcoderPath, ['-i', filePath, '-b:a', 192 + 'k', '-ac', '2', '-acodec', 'libmp3lame', '-threads', '0', '-f', 'mp3', '-']);
 
-	/*encoderChild.stderr.on('data', function(data) {
-		console.log(data.toString());
-	});*/
+	if (debug) {
+		encoderChild.stderr.on('data', function(data) {
+			console.log(data.toString());
+		});
+	}
 
 	encoderChild.stdout.on('data', function() {
 		if (!headerSent) {
@@ -511,11 +550,7 @@ app.get(/^\/hls\/$/, function(request, response) {
 	handlePlaylistRequest(file, response);
 });
 
-app.get(/^\/hls\//, function(request, response) {
-	var urlParsed = url.parse(request.url, true);
-	var file = path.relative('/hls/', decodeURIComponent(urlParsed.pathname));
-	handleStaticFileRequest(outputPath, file, response);
-});
+app.use('/hls/', express.static(__dirname + '/cache/'));
 
 app.get(/^\/thumbnail\//, function(request, response) {
 	var urlParsed = url.parse(request.url, true);
@@ -532,11 +567,7 @@ app.get(/^\/browse/, function(request, response) {
 	browseDir(browsePath, response);
 });
 
-app.get(/^\/raw\//, function(request, response) {
-	var urlParsed = url.parse(request.url, true);
-	var file = path.relative('/raw/', decodeURIComponent(urlParsed.pathname));
-	handleStaticFileRequest(rootPath, file, response);
-});
+app.use('/raw/', express.static(rootPath));
 
 app.get(/^\/audio\//, function(request, response) {
 	var urlParsed = url.parse(request.url, true);
@@ -551,10 +582,6 @@ app.post(/^\/settings/, function(request, response) {
 	if (newBitrate) {
 		videoBitrate = parseInt(newBitrate);
 	}
-	if (request.body.enableThumbnails != null) {
-		enableThumbnails = request.body.enableThumbnails === 'true' ? true : false;
-		console.log('enableThumbnails ' + enableThumbnails);
-	}
 
 	response.end();
 });
@@ -562,8 +589,7 @@ app.post(/^\/settings/, function(request, response) {
 app.get(/^\/settings/, function(request, response) {
 	response.setHeader('Content-Type', 'application/json');
 	response.write(JSON.stringify({
-		'videoBitrate': videoBitrate,
-		'thumbnails': enableThumbnails,
+		'videoBitrate': videoBitrate
 	}));
 	response.end();
 });

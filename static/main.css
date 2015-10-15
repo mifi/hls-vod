@@ -18,7 +18,7 @@ a, a:visited, a:active {
 	text-shadow: 1px 1px #ccc;
 	color: #000;
 	font-size: 1.2em;
-	padding: .2em .5em;
+	padding: .4em .5em;
 	white-space: nowrap;
 	overflow-x: auto;
 }
@@ -77,13 +77,4 @@ video, audio {
 }
 #thumbnail-viewer img {
 	width: 100%;
-}
-
-#thumbnail-viewer .x-button {
-	position: absolute;
-	right: 0;
-	top: 0;
-	cursor: pointer;
-	font-weight: bold;
-	/*background-color: white;*/
 }

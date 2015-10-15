@@ -1,57 +1,74 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title></title>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black" />
-<meta name="format-detection" content="telephone=no" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<title></title>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+	<meta name="format-detection" content="telephone=no" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
 
-<link rel="stylesheet" type="text/css" href="main.css" />
+	<link rel="stylesheet" type="text/css" href="main.css" />
+	<link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap.min.css">
 
-<script type="text/javascript" src="jquery-1.8.3.min.js"></script>
-<script type="text/javascript" src="prefixfree.min.js"></script>
-<script type="text/javascript" src="app.js"></script>
+	<script type="text/javascript" src="jquery-1.11.3.min.js"></script>
+	<script type="text/javascript" src="prefixfree.min.js"></script>
+	<script src="bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
 
-<!--<link rel="apple-touch-startup-image" href="splash.png" />
-<link rel="apple-touch-icon" sizes="72x72" href="apple-touch-icon-144x144.png" />
-<link rel="apple-touch-icon" sizes="114x114" href="apple-touch-icon-114x114.png" />
--->
+	<script type="text/javascript" src="app.js"></script>
+
+	<!--<link rel="apple-touch-startup-image" href="splash.png" />
+	<link rel="apple-touch-icon" sizes="72x72" href="apple-touch-icon-144x144.png" />
+	<link rel="apple-touch-icon" sizes="114x114" href="apple-touch-icon-114x114.png" />
+	-->
 </head>
 
 <body>
+	<div class="container">
+		<div style="text-align: center">
+			<audio></audio>
 
-<audio></audio>
+			<video id="video" controls></video>
+		</div>
 
-<video id="video" controls></video>
+		<div id="dir-header"></div>
+		<ul id="file-list">
+		</ul>
 
-<div id="dir-header"></div>
-<ul id="file-list">
-</ul>
 
-<p><span id="settings-btn">Settings</span></p>
-<div id="settings-container">
-<form>
-	<ul>
-	<li>Bitrate:
-		<select name="videoBitrate">
-			<option value="300">300</option>
-			<option value="600">600</option>
-			<option value="1000">1000</option>
-			<option value="1500">1500</option>
-			<option value="1800">1800</option>
-		</select>
-	</li>
-	
-	<li>Thumbnails <input type="checkbox" name="enableThumbnails" /></li>
-	</ul>
-</form>
-</div>
+		<div style="margin: 2em 0"><span id="settings-btn">Settings</span></div>
+		<div id="settings-container">
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					Settings
+				</div>
 
-<div id="thumbnail-viewer">
-	<div class="x-button">X</div>
-	<img alt="" />
-</div>
+				<div class="panel-body">
+					<form>
+						<label for="videoBitrate">Bitrate</label>
+						<select class="form-control" name="videoBitrate" id="videoBitrate">
+							<option value="300">300</option>
+							<option value="600">600</option>
+							<option value="1000">1000</option>
+							<option value="1500">1500</option>
+							<option value="1800">1800</option>
+						</select>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div id="thumbnail-viewer">
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<div class="x-button"><span class="glyphicon glyphicon-remove"></span></div>
+			</div>
+
+			<div class="panel-body">
+				<img alt="" />
+			</div>
+		</div>
+	</div>
 </body>
 </html>
