@@ -36,7 +36,7 @@ var currentFile = null;
 var lock = false;
 var encodingStartTime = null;
 
-
+// We have to apply some hacks to the playlist
 function withModifiedPlaylist(readStream, eachLine, done) {
 	var rl = readLine.createInterface({input: readStream});
 	
@@ -45,12 +45,14 @@ function withModifiedPlaylist(readStream, eachLine, done) {
 	rl.on('line', function (line) {
 		if (line.match('^#EXT-X-PLAYLIST-TYPE:')) foundPlaylistType = true;
 		else if (line.match('^#EXTINF:') && !foundPlaylistType) {
-			eachLine('#EXT-X-PLAYLIST-TYPE:EVENT'); // Insert the type if it does not exist (ffmpeg doesn't seem to add this). Not having this set to VOD or EVENT will lead to no scrub-bar when encoding is completed
+			// Insert the type if it does not exist (ffmpeg doesn't seem to add this). Not having this set to VOD or EVENT will lead to no scrub-bar when encoding is completed
+			eachLine('#EXT-X-PLAYLIST-TYPE:EVENT');
 			foundPlaylistType = true;
 		}
 		
+		// Due to what seems like a bug in Apples implementation, if #EXT-X-ENDLIST is included too fast, it seems the player will hang. Removing it will cause the player to re-fetch the playlist once more, which seems to prevent the bug.
 		if (line.match('^#EXT-X-ENDLIST') && new Date().getTime() - encodingStartTime.getTime() < playlistEndMinTime) {
-			console.log('File was encoded too fast, skiping END tag'); // Due to what seems like a bug in Apples implementation, if #EXT-X-ENDLIST is included too fast, it seems the player will hang. Removing it will cause the player to re-fetch the playlist once more, which seems to prevent the bug.
+			console.log('File was encoded too fast, skiping END tag');
 		}
 		else {
 			eachLine(line);
@@ -179,13 +181,15 @@ function pollForPlaylist(file, response, playlistPath) {
 				}
 				else console.log(err);
 			});
-			
+
 			checkPlaylistCount(readStream, function(found) {
 				if (!found) {
 					return retry();
 				}
 
 				if (debug) console.log('Found playlist file!');
+
+				//response.sendfile(playlistPath);
 
 				var readStream2 = fs.createReadStream(playlistPath);
 
@@ -224,6 +228,8 @@ function killProcess(processToKill, callback) {
 }
 
 function handlePlaylistRequest(file, response) {
+	if (debug) console.log('Playlist request: ' + file)
+	
 	if (!file) {
 		request.writeHead(400);
 		request.end();
@@ -247,22 +253,20 @@ function handlePlaylistRequest(file, response) {
 		
 		encodingStartTime = new Date();
 
-		// Make sure old one gets killed
-		if (encoderProcesses[currentFile]) {
-			killProcess(encoderProcesses[currentFile], function() {
-				fs.unlink(playlistPath, function (err) {
-					spawnNewProcess(file, playlistPath, outputPath);
-					pollForPlaylist(file, response, playlistPath);
-					lock = false;
-				});
-			});
-		}
-		else {
+		function startNewEncoding() {
 			fs.unlink(playlistPath, function (err) {
 				spawnNewProcess(file, playlistPath, outputPath);
 				pollForPlaylist(file, response, playlistPath);
 				lock = false;
 			});
+		}
+
+		// Make sure old one gets killed
+		if (encoderProcesses[currentFile]) {
+			killProcess(encoderProcesses[currentFile], startNewEncoding);
+		}
+		else {
+			startNewEncoding();
 		}
 	}
 	else {
@@ -297,7 +301,7 @@ function listFiles(response) {
 					}
 
 					response.write(
-						'<a href="/hls/?file=' + encodeURIComponent(filePath) + '" title="' + sanitize(filePath).entityEncode() + '">'
+						'<a href="/hls/file-' + encodeURIComponent(filePath) + '.m3u8' + '" title="' + sanitize(filePath).entityEncode() + '">'
 						+ sanitize(friendlyName).entityEncode() + '</a>'
 						+ ' (' + sanitize(path.extname(filePath)).entityEncode() + ')'
 						+ ' (<a href="' + sanitize(path.join('/raw', filePath)).entityEncode() + '">Raw</a>)<br />');
@@ -360,7 +364,7 @@ function browseDir(browsePath, response) {
 
 						if (videoExtensions.indexOf(extName) != -1) {
 							fileObj.type = 'video';
-							fileObj.path = '/hls/?file=' + encodeURIComponent(relPath);
+							fileObj.path = '/hls/file-' + encodeURIComponent(relPath) + '.m3u8';
 						}
 						else if (audioExtensions.indexOf(extName) != -1) {
 							fileObj.type = 'audio';
@@ -548,10 +552,11 @@ app.all('*', function(request, response, next) {
 
 app.use('/', express.static(__dirname + '/static'));
 
-app.get(/^\/hls\/$/, function(request, response) {
-	var urlParsed = url.parse(request.url, true);
-	var file = urlParsed.query['file'];
-	handlePlaylistRequest(file, response);
+// Flash plugin needs path to end with .m3u8, so we hack it with file name url encoded inside the path component!
+// In addition, m3u8 file has to be under the same path as the TS-files, so they can be linked relatively in the m3u8 file
+app.get(/^\/hls\/file-(.+).m3u8/, function(request, response) {
+	var filePath = decodeURIComponent(request.params[0]);
+	handlePlaylistRequest(filePath, response);
 });
 
 app.use('/hls/', express.static(__dirname + '/cache/'));

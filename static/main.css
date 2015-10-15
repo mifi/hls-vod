@@ -42,7 +42,7 @@ a, a:visited, a:active {
 #settings-container {
 	display: none;
 }
-video, audio {
+audio {
 	margin: auto;
 	display: block;
 }

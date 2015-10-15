@@ -1,48 +1,72 @@
 $(function() {
-	var $videoPlayer = $('#video');
+	var $videoPlayer = $('#video-container');
+	var $audioPlayer = $('audio');
 	
+	var mediaElement;
+
 	// State
 	var loading = false;
 	
 
 	function audioStop() {
-		var audioPlayer = $('audio');
-		audioPlayer.prop('controls', false);
-		audioPlayer[0].pause();
-		audioPlayer.hide();
-	};
+		$audioPlayer.prop('controls', false);
+		$audioPlayer[0].pause();
+		$audioPlayer.hide();
+	}
 
 	function videoStop() {
-		$videoPlayer[0].pause();
-		$videoPlayer.hide();
-	};
+		if (mediaElement) {
+			mediaElement.pause();
+			$videoPlayer.hide();
+		}
+	}
 
 	function audioPlay(path) {
 		videoStop();
+		audioStop();
 
-		var audioPlayer = $('audio');
-		audioPlayer.prop('controls', true);
-		audioPlayer.show();
+		$audioPlayer.prop('controls', true);
+		$audioPlayer.show();
 
-		audioPlayer[0].src = path;
-		audioPlayer[0].load();
-		audioPlayer[0].play();
-	};
+		$audioPlayer[0].src = path;
+		$audioPlayer[0].load();
+		$audioPlayer[0].play();
+	}
 
 	function videoPlay(path) {
 		audioStop();
 
 		$videoPlayer.show();
 
-		$videoPlayer[0].src = path;
-		$videoPlayer[0].load();
-		$videoPlayer[0].play();
-	};
+		if (mediaElement) {
+			mediaElement.pause();
+			
+			mediaElement.setSrc(path);
+			mediaElement.play();
+			return;
+		}
+		else {
+			var $video = $('#video');
+			$video[0].src = path;
+			$video.mediaelementplayer({
+				success: function (mediaElement2, domObject) {
+			        mediaElement = mediaElement2;
+					mediaElement.play();
+			    },
+
+			    error: function (mediaeElement, err) { 
+					console.log('Error loading media element');
+			    }
+			});
+		}
+	}
 
 
 	function browseTo(path) {
 		if (loading) return;
 		loading = true;
+
+		var $fileList = $('#file-list');
 		
 		$('#thumbnail-viewer .x-button').click(function() {
 			$('#thumbnail-viewer').fadeOut(200);
@@ -54,14 +78,14 @@ $(function() {
 
 				$('#dir-header').text(data.cwd);
 
-				$('#file-list').empty();
+				$fileList.empty();
 
 				var back = $('<li/>');
 				back.html('..');
 				back.click(function() {
 					browseTo(data.cwd != '/' ? path + '/..' : path);
 				});
-				$('#file-list').append(back);
+				$fileList.append(back);
 
 				$.each(data.files, function(index, file) {
 					var elem = $('<li/>');
@@ -124,9 +148,10 @@ $(function() {
 		});
 	}
 	
+
+	$videoPlayer.hide();
+	$audioPlayer.hide();
 	
-	
-	$('audio, video').hide();
 
 	browseTo('/browse');
 

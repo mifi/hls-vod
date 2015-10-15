@@ -8,19 +8,22 @@
 	<meta name="format-detection" content="telephone=no" />
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 
-	<link rel="stylesheet" type="text/css" href="main.css" />
-	<link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap.min.css">
-
-	<script type="text/javascript" src="jquery-1.11.3.min.js"></script>
-	<script type="text/javascript" src="prefixfree.min.js"></script>
-	<script src="bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
-
-	<script type="text/javascript" src="app.js"></script>
-
 	<!--<link rel="apple-touch-startup-image" href="splash.png" />
 	<link rel="apple-touch-icon" sizes="72x72" href="apple-touch-icon-144x144.png" />
 	<link rel="apple-touch-icon" sizes="114x114" href="apple-touch-icon-114x114.png" />
 	-->
+
+	<link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap.min.css">
+	<link rel="stylesheet" href="johndyer-mediaelement-2.18.2-0-g86b5dd5/mediaelementplayer.css" />
+
+	<link rel="stylesheet" type="text/css" href="main.css" />
+
+	<script type="text/javascript" src="jquery-1.11.3.min.js"></script>
+	<script type="text/javascript" src="prefixfree.min.js"></script>
+	<script src="bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+	<script src="johndyer-mediaelement-2.18.2-0-g86b5dd5/mediaelement-and-player.min.js"></script>
+
+	<script type="text/javascript" src="app.js"></script>
 </head>
 
 <body>
@@ -28,13 +31,14 @@
 		<div style="text-align: center">
 			<audio></audio>
 
-			<video id="video" controls></video>
+			<div id="video-container">
+				<video id="video"></video>
+			</div>
 		</div>
 
 		<div id="dir-header"></div>
-		<ul id="file-list">
-		</ul>
 
+		<ul id="file-list"></ul>
 
 		<div style="margin: 2em 0"><span id="settings-btn">Settings</span></div>
 		<div id="settings-container">
