@@ -424,7 +424,12 @@ function handleAudioRequest(relPath, request, response) {
 
 	// TODO: Child management
 	//var encoderChild = childProcess.spawn(transcoderPath, ['-i', filePath, '-b:a', 64 + 'k', '-ac', '2', '-acodec', 'libaacplus', '-threads', '0', '-f', 'adts', '-']);
-	var encoderChild = childProcess.spawn(transcoderPath, ['-i', filePath, '-b:a', 192 + 'k', '-ac', '2', '-acodec', 'libmp3lame', '-threads', '0', '-f', 'mp3', '-']);
+	var encoderChild = childProcess.spawn(transcoderPath, [
+		'-i', filePath, '-threads', '0',
+		'-b:a', 192 + 'k', '-ac', '2', '-acodec', 'libmp3lame',
+		'-map', '0:a:0',
+		'-f', 'mp3', '-'
+	]);
 
 	if (debug) {
 		encoderChild.stderr.on('data', function(data) {
