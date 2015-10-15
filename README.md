@@ -13,7 +13,7 @@ Requirements
 
 VLC / ffmpeg ?
 --------------
-ffmpeg gives the best performance and best format/codec support, in my experience. Thumbs and audio does not work with VLC.
+ffmpeg gives the best performance and best format/codec support, in my experience. Thumbs and audio is not implemented for VLC.
 
 Installation
 ------------
