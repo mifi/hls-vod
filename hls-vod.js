@@ -4,6 +4,8 @@ var url = require('url');
 var fs = require('fs');
 var path = require('path');
 var readLine = require('readline');
+var serveStatic = require('serve-static');
+var bodyParser = require('body-parser');
 
 // 3rd party
 var sanitize = require('validator').sanitize;
@@ -540,14 +542,14 @@ fs.mkdir(outputPath, function(err, data) {
 });
 
 var app = express();
-app.use(express.bodyParser());
+app.use(bodyParser.urlencoded({extended: false}));
 
 app.all('*', function(request, response, next) {
 	console.log(request.url);
 	next();
 });
 
-app.use('/', express.static(__dirname + '/static'));
+app.use('/', serveStatic(__dirname + '/static'));
 
 // Flash plugin needs path to end with .m3u8, so we hack it with file name url encoded inside the path component!
 // In addition, m3u8 file has to be under the same path as the TS-files, so they can be linked relatively in the m3u8 file
@@ -556,7 +558,7 @@ app.get(/^\/hls\/file-(.+).m3u8/, function(request, response) {
 	handlePlaylistRequest(filePath, response);
 });
 
-app.use('/hls/', express.static(__dirname + '/cache/'));
+app.use('/hls/', serveStatic(__dirname + '/cache/'));
 
 app.get(/^\/thumbnail\//, function(request, response) {
 	var file = path.relative('/thumbnail/', decodeURIComponent(request.path));
@@ -572,7 +574,7 @@ app.get(/^\/browse/, function(request, response) {
 	browseDir(browsePath, response);
 });
 
-app.use('/raw/', express.static(rootPath));
+app.use('/raw/', serveStatic(rootPath));
 
 app.get(/^\/audio\//, function(request, response) {
 	var relPath = path.relative('/audio/', decodeURIComponent(request.path));

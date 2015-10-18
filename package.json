@@ -1,9 +1,11 @@
 {
-	"name": "hls-vod",
-	"version": "0.2.0",
-	"dependencies": {
-		"wrench": "1.4.4",
-		"validator": "0.4.19",
-		"express":"3.0.4"
-	}
+  "name": "hls-vod",
+  "version": "0.2.0",
+  "dependencies": {
+    "body-parser": "^1.14.1",
+    "express": "^4.13.3",
+    "serve-static": "^1.10.0",
+    "validator": "0.4.19",
+    "wrench": "1.4.4"
+  }
 }
