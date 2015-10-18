@@ -26,12 +26,16 @@
 	<script src="bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
 	<script src="johndyer-mediaelement-2.18.2-0-g86b5dd5/mediaelement-and-player.min.js"></script>
 
+	<script src="/socket.io/socket.io.js"></script>
+
 	<script type="text/javascript" src="app.js"></script>
 </head>
 
 <body>
-	<div class="container">
+	<div class="container">		
 		<div style="text-align: center; position: relative">
+			<div id="transcoders"></div>
+
 			<div id="audio-container">
 				<div id="audio-song-name"></div>
 				<audio></audio>

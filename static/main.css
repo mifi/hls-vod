@@ -6,7 +6,7 @@ body {
 	font-family: 'Open Sans', sans-serif;
 }
 a, a:visited, a:active {
-	color: #91AFA8;
+	color: inherit;
 }
 #file-list {
 	list-style: none;
@@ -38,6 +38,15 @@ a, a:visited, a:active {
 	font-size: 1.2em;
 	padding: .2em .5em;
 	overflow: hidden;
+}
+
+#transcoders {
+	color: white;
+    padding: .2em .5em;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 1;
 }
 
 audio {

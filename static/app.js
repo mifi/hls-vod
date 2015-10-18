@@ -1,18 +1,14 @@
 $(function() {
 	var $videoContainer = $('#video-container');
-
 	var $audioPlayer = $('audio');
 	var $audioContainer = $('#audio-container');
-
 	var $previewImage = $('#preview-image');
-
 	var $playerLoading = $('#player-loading');
-	
-	var mediaElement;
 
 	// State
+	var mediaElement;
 	var loading = false;
-	
+	var activeTranscodings = [];
 
 	function audioStop() {
 		$audioPlayer.prop('controls', false);
@@ -84,6 +80,14 @@ $(function() {
 		videoStop();
 		audioStop();
 	}
+	
+	function updateActiveTranscodings() {
+		$('#transcoders').text('Active transcoders: ' + activeTranscodings.length).fadeIn(200);
+		setTimeout(function() {
+			$('#transcoders').fadeOut(200);
+		}, 5000);
+	}
+	
 
 	function browseTo(path) {
 		if (loading) return;
@@ -113,7 +117,7 @@ $(function() {
 					switch(file.type) {
 					case 'video':
 						elem.click(function() {
-							if (confirm('Play video? (Will delete any previous encoding)')) {
+							if (activeTranscodings.length == 0 || confirm('Play video? (Will delete any previous encoding)')) {
 								videoPlay(file.path);
 							}
 						});
@@ -162,13 +166,6 @@ $(function() {
 	}
 	
 
-	$videoContainer.hide();
-	$audioContainer.hide();
-	$previewImage.hide();
-	$playerLoading.hide();
-
-	browseTo('/');
-
 	$('#settings-btn').click(function() {
 		$('#settings-container').fadeToggle();
 	});
@@ -188,4 +185,19 @@ $(function() {
 	$.get('/settings', function(data) {
 		$('#settings-container select[name=videoBitrate]').val(data.videoBitrate);
 	});
+	
+	
+	var socket = io.connect();
+
+	socket.on('updateActiveTranscodings', function(data) {
+		activeTranscodings = data;
+		updateActiveTranscodings();
+	});
+	
+	browseTo('/');
+	
+	$videoContainer.hide();
+	$audioContainer.hide();
+	$previewImage.hide();
+	$playerLoading.hide();
 });

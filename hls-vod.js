@@ -4,13 +4,15 @@ var url = require('url');
 var fs = require('fs');
 var path = require('path');
 var readLine = require('readline');
-var serveStatic = require('serve-static');
-var bodyParser = require('body-parser');
+var _ = require('underscore');
 
 // 3rd party
 var sanitize = require('validator').sanitize;
 var wrench = require('wrench');
 var express = require('express');
+var serveStatic = require('serve-static');
+var bodyParser = require('body-parser');
+var socketIo = require('socket.io');
 
 // Parameters
 var listenPort = 4040;
@@ -28,7 +30,6 @@ var playlistRetryDelay = 500;
 var playlistRetryTimeout = 60000;
 var playlistEndMinTime = 20000;
 
-
 var videoExtensions = ['.mp4','.3gp2','.3gp','.3gpp', '.3gp2','.amv','.asf','.avs','.dat','.dv', '.dvr-ms','.f4v','.m1v','.m2p','.m2ts','.m2v', '.m4v','.mkv','.mod','.mp4','.mpe','.mpeg1', '.mpeg2','.divx','.mpeg4','.mpv','.mts','.mxf', '.nsv','.ogg','.ogm','.mov','.qt','.rv','.tod', '.trp','.tp','.vob','.vro','.wmv','.web,', '.rmvb', '.rm','.ogv','.mpg', '.avi', '.mkv', '.wmv', '.asf', '.m4v', '.flv', '.mpg', '.mpeg', '.mov', '.vob', '.ts', '.webm'];
 var audioExtensions = ['.mp3', '.aac', '.m4a'];
 
@@ -37,6 +38,7 @@ var encoderProcesses = {};
 var currentFile = null;
 var lock = false;
 var encodingStartTime = null;
+var io = null;
 
 // We have to apply some hacks to the playlist
 function withModifiedPlaylist(readStream, eachLine, done) {
@@ -66,9 +68,13 @@ function withModifiedPlaylist(readStream, eachLine, done) {
 	});
 }
 
-function spawnNewProcess(file, playlistPath) {
-	var outputUrlPrefix = '/segment/';
+function updateActiveTranscodings() {
+	io.emit('updateActiveTranscodings', _.map(encoderProcesses, function(it) {
+		return it.pid;
+	}));
+}
 
+function spawnNewProcess(file, playlistPath) {
 	var playlistFileName = 'stream.m3u8';
 
 	if (transcoderType === 'ffmpeg') {
@@ -107,6 +113,7 @@ function spawnNewProcess(file, playlistPath) {
 	if (debug) console.log(transcoderPath + ' ' + args.join(' '));
 
 	encoderProcesses[file] = encoderChild;
+	updateActiveTranscodings();
 	currentFile = file;
 
 	if (debug) {
@@ -124,6 +131,7 @@ function spawnNewProcess(file, playlistPath) {
 		}
 
 		delete encoderProcesses[file];
+		updateActiveTranscodings();
 	});
 
 	// Kill any "zombie" processes
@@ -415,7 +423,7 @@ function handleThumbnailRequest(file, response) {
 
 	setTimeout(function() {
 		child.kill('SIGKILL');
-	}, 4000);
+	}, 10000);
 }
 
 
@@ -458,146 +466,161 @@ function handleAudioRequest(relPath, request, response) {
 }
 
 
-function exitWithUsage(argv) {
-	console.log(
-		'Usage: ' + argv[0] + ' ' + argv[1]
-		+ ' --root-path PATH'
-		+ ' [--search-path PATH1 [--search-path PATH2 [...]]]'
-		+ ' [--port PORT]'
-		+ ' [--cache-dir PATH]'
-		+ ' [--transcoder-path PATH]'
-		+ ' [--transcoder-type ffmpeg|vlc]'
-		+ ' [--debug]'
-	);
-	process.exit();
-}
 
-for (var i=2; i<process.argv.length; i++) {
-	switch (process.argv[i]) {
-		case '--transcoder-path':
-		if (process.argv.length <= i+1) {
+
+function init() {
+	function exitWithUsage(argv) {
+		console.log(
+			'Usage: ' + argv[0] + ' ' + argv[1]
+			+ ' --root-path PATH'
+			+ ' [--search-path PATH1 [--search-path PATH2 [...]]]'
+			+ ' [--port PORT]'
+			+ ' [--cache-dir PATH]'
+			+ ' [--transcoder-path PATH]'
+			+ ' [--transcoder-type ffmpeg|vlc]'
+			+ ' [--debug]'
+		);
+		process.exit();
+	}
+
+	for (var i=2; i<process.argv.length; i++) {
+		switch (process.argv[i]) {
+			case '--transcoder-path':
+			if (process.argv.length <= i+1) {
+				exitWithUsage(process.argv);
+			}
+			transcoderPath = process.argv[++i];
+			console.log('Transcoder path ' + transcoderPath);
+			break;
+
+			case '--root-path':
+			if (process.argv.length <= i+1) {
+				exitWithUsage(process.argv);
+			}
+			rootPath = process.argv[++i];
+			break;
+
+			case '--search-path':
+			if (process.argv.length <= i+1) {
+				exitWithUsage(process.argv);
+			}
+			searchPaths.push(process.argv[++i]);
+			break;
+
+			case '--cache-dir':
+			if (process.argv.length <= i+1) {
+				exitWithUsage(process.argv);
+			}
+			outputPath = process.argv[++i];
+			break;
+
+			case '--port':
+			if (process.argv.length <= i+1) {
+				exitWithUsage(process.argv);
+			}
+			listenPort = parseInt(process.argv[++i]);
+			break;
+
+			case '--transcoder-type':
+			if (process.argv.length <= i+1) {
+				exitWithUsage(process.argv);
+			}
+			transcoderType = process.argv[++i];
+			if (['vlc', 'ffmpeg'].indexOf(transcoderType) == -1) exitWithUsage(process.argv);
+			break;
+
+			case '--debug':
+				debug = true;
+			break;
+
+			default:
+			console.log(process.argv[i]);
 			exitWithUsage(process.argv);
+			break;
 		}
-		transcoderPath = process.argv[++i];
-		console.log('Transcoder path ' + transcoderPath);
-		break;
+	}
+	
+	console.log(rootPath + ' ' + searchPaths);
 
-		case '--root-path':
-		if (process.argv.length <= i+1) {
-			exitWithUsage(process.argv);
-		}
-		rootPath = process.argv[++i];
-		break;
-
-		case '--search-path':
-		if (process.argv.length <= i+1) {
-			exitWithUsage(process.argv);
-		}
-		searchPaths.push(process.argv[++i]);
-		break;
-
-		case '--cache-dir':
-		if (process.argv.length <= i+1) {
-			exitWithUsage(process.argv);
-		}
-		outputPath = process.argv[++i];
-		break;
-
-		case '--port':
-		if (process.argv.length <= i+1) {
-			exitWithUsage(process.argv);
-		}
-		listenPort = parseInt(process.argv[++i]);
-		break;
-
-		case '--transcoder-type':
-		if (process.argv.length <= i+1) {
-			exitWithUsage(process.argv);
-		}
-		transcoderType = process.argv[++i];
-		if (['vlc', 'ffmpeg'].indexOf(transcoderType) == -1) exitWithUsage(process.argv);
-		break;
-
-		case '--debug':
-			debug = true;
-		break;
-
-		default:
-		console.log(process.argv[i]);
+	if (!rootPath) {
 		exitWithUsage(process.argv);
-		break;
-	}
-}
-
-console.log(rootPath + ' ' + searchPaths);
-
-if (!rootPath) {
-	exitWithUsage(process.argv);
-}
-
-fs.mkdir(outputPath, function(err, data) {
-	if (err && err.code == 'EEXIST') return;
-	else if (err) return console.log(err);
-	console.log('Created directory ' + outputPath);
-});
-
-var app = express();
-app.use(bodyParser.urlencoded({extended: false}));
-
-app.all('*', function(request, response, next) {
-	console.log(request.url);
-	next();
-});
-
-app.use('/', serveStatic(__dirname + '/static'));
-
-// Flash plugin needs path to end with .m3u8, so we hack it with file name url encoded inside the path component!
-// In addition, m3u8 file has to be under the same path as the TS-files, so they can be linked relatively in the m3u8 file
-app.get(/^\/hls\/file-(.+).m3u8/, function(request, response) {
-	var filePath = decodeURIComponent(request.params[0]);
-	handlePlaylistRequest(filePath, response);
-});
-
-app.use('/hls/', serveStatic(__dirname + '/cache/'));
-
-app.get(/^\/thumbnail\//, function(request, response) {
-	var file = path.relative('/thumbnail/', decodeURIComponent(request.path));
-	handleThumbnailRequest(file, response);
-});
-
-app.get('/list', function(request, response) {
-	listFiles(response);
-});
-
-app.get(/^\/browse/, function(request, response) {
-	var browsePath = path.relative('/browse', decodeURIComponent(request.path));
-	browseDir(browsePath, response);
-});
-
-app.use('/raw/', serveStatic(rootPath));
-
-app.get(/^\/audio\//, function(request, response) {
-	var relPath = path.relative('/audio/', decodeURIComponent(request.path));
-	handleAudioRequest(relPath, request, response);
-});
-
-app.post(/^\/settings/, function(request, response) {
-	console.log(request.body);
-
-	var newBitrate = request.body.videoBitrate;
-	if (newBitrate) {
-		videoBitrate = parseInt(newBitrate);
 	}
 
-	response.end();
-});
+	fs.mkdir(outputPath, function(err, data) {
+		if (err && err.code == 'EEXIST') return;
+		else if (err) return console.log(err);
+		console.log('Created directory ' + outputPath);
+	});
 
-app.get(/^\/settings/, function(request, response) {
-	response.setHeader('Content-Type', 'application/json');
-	response.write(JSON.stringify({
-		'videoBitrate': videoBitrate
-	}));
-	response.end();
-});
+	initExpress();
+}
 
-app.listen(listenPort);
+function initExpress() {
+	var app = express();
+	var server = http.Server(app);
+	io = socketIo(server);
+
+	app.use(bodyParser.urlencoded({extended: false}));
+
+	app.all('*', function(request, response, next) {
+		console.log(request.url);
+		next();
+	});
+
+	app.use('/', serveStatic(__dirname + '/static'));
+
+	// Flash plugin needs path to end with .m3u8, so we hack it with file name url encoded inside the path component!
+	// In addition, m3u8 file has to be under the same path as the TS-files, so they can be linked relatively in the m3u8 file
+	app.get(/^\/hls\/file-(.+).m3u8/, function(request, response) {
+		var filePath = decodeURIComponent(request.params[0]);
+		handlePlaylistRequest(filePath, response);
+	});
+
+	app.use('/hls/', serveStatic(__dirname + '/cache/'));
+
+	app.get(/^\/thumbnail\//, function(request, response) {
+		var file = path.relative('/thumbnail/', decodeURIComponent(request.path));
+		handleThumbnailRequest(file, response);
+	});
+
+	app.get('/list', function(request, response) {
+		listFiles(response);
+	});
+
+	app.get(/^\/browse/, function(request, response) {
+		var browsePath = path.relative('/browse', decodeURIComponent(request.path));
+		browseDir(browsePath, response);
+	});
+
+	app.use('/raw/', serveStatic(rootPath));
+
+	app.get(/^\/audio\//, function(request, response) {
+		var relPath = path.relative('/audio/', decodeURIComponent(request.path));
+		handleAudioRequest(relPath, request, response);
+	});
+
+	app.post(/^\/settings/, function(request, response) {
+		console.log(request.body);
+
+		var newBitrate = request.body.videoBitrate;
+		if (newBitrate) {
+			videoBitrate = parseInt(newBitrate);
+		}
+
+		response.end();
+	});
+
+	app.get(/^\/settings/, function(request, response) {
+		response.setHeader('Content-Type', 'application/json');
+		response.write(JSON.stringify({
+			'videoBitrate': videoBitrate
+		}));
+		response.end();
+	});
+	
+
+	server.listen(listenPort);
+}
+
+
+init();
