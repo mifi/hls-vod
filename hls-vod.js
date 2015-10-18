@@ -74,7 +74,7 @@ function spawnNewProcess(file, playlistPath) {
 		var tsOutputFormat = 'stream%05d.ts';
 		var args = [
 			'-i', file, '-sn',
-			'-async', '1', '-acodec', 'libmp3lame', '-b:a', 128 + 'k', '-ar', '44100', '-ac', '2',
+			'-async', '1', '-acodec', 'libmp3lame', '-b:a', audioBitrate + 'k', '-ar', '44100', '-ac', '2',
 			'-vf', 'scale=min(' + targetWidth + '\\, iw):-1', '-b:v', videoBitrate + 'k', '-vcodec', 'libx264', '-profile:v', 'baseline', '-preset:v' ,'superfast',
 			'-x264opts', 'level=3.0',
 			'-threads', '0', '-flags', '-global_header', '-map', '0',
@@ -94,7 +94,7 @@ function spawnNewProcess(file, playlistPath) {
 			'--sout=#transcode{width=' + targetWidth + ',vcodec=h264,vb=' + videoBitrate + ',fps=25' +
 			//',venc=x264{aud,profile=baseline,level=30,keyint=30,ref=1,preset=superfast},' +
 			',venc=x264{aud,profile=baseline,level=30,preset=superfast},' +
-			'acodec=mp3,ab=128,channels=2,audio-sync}:std{access=livehttp{seglen=10,delsegs=false,numsegs=0,index=' + playlistFileName + ',index-url=' + tsOutputFormat + '},' +
+			'acodec=mp3,ab=' + audioBitrate + ',channels=2,audio-sync}:std{access=livehttp{seglen=10,delsegs=false,numsegs=0,index=' + playlistFileName + ',index-url=' + tsOutputFormat + '},' +
 			'mux=ts{use-key-frames},dst=' + tsOutputFormat + '}'
 		];
 	}
