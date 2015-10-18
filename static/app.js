@@ -1,6 +1,12 @@
 $(function() {
-	var $videoPlayer = $('#video-container');
+	var $videoContainer = $('#video-container');
+
 	var $audioPlayer = $('audio');
+	var $audioContainer = $('#audio-container');
+
+	var $previewImage = $('#preview-image');
+
+	var $playerLoading = $('#player-loading');
 	
 	var mediaElement;
 
@@ -11,22 +17,25 @@ $(function() {
 	function audioStop() {
 		$audioPlayer.prop('controls', false);
 		$audioPlayer[0].pause();
-		$audioPlayer.hide();
+		$audioContainer.hide();
 	}
 
 	function videoStop() {
 		if (mediaElement) {
 			mediaElement.pause();
-			$videoPlayer.hide();
+			$videoContainer.hide();
 		}
 	}
 
-	function audioPlay(path) {
+	function audioPlay(path, name) {
+		$('#audio-song-name').text(name);
+		
 		videoStop();
 		audioStop();
+		hidePreviewImage();
 
 		$audioPlayer.prop('controls', true);
-		$audioPlayer.show();
+		$audioContainer.show();
 
 		$audioPlayer[0].src = path;
 		$audioPlayer[0].load();
@@ -35,15 +44,15 @@ $(function() {
 
 	function videoPlay(path) {
 		audioStop();
+		hidePreviewImage();
 
-		$videoPlayer.show();
+		$videoContainer.show();
 
 		if (mediaElement) {
 			mediaElement.pause();
 			
 			mediaElement.setSrc(path);
 			mediaElement.play();
-			return;
 		}
 		else {
 			var $video = $('#video');
@@ -53,7 +62,6 @@ $(function() {
 			        mediaElement = mediaElement2;
 					mediaElement.play();
 			    },
-
 			    error: function (mediaeElement, err) { 
 					console.log('Error loading media element');
 			    }
@@ -61,6 +69,21 @@ $(function() {
 		}
 	}
 
+	function hidePreviewImage() {
+		$playerLoading.fadeOut(200);
+		$previewImage.hide();
+	}
+
+	function showPreviewImage(relPath) {
+		var path = '/thumbnail' + relPath;
+		$previewImage.attr('src', path).fadeIn(200);
+		$playerLoading.fadeIn(200);
+		$previewImage.on('load', function() {
+			$playerLoading.fadeOut(200);
+		});
+		videoStop();
+		audioStop();
+	}
 
 	function browseTo(path) {
 		if (loading) return;
@@ -68,11 +91,7 @@ $(function() {
 
 		var $fileList = $('#file-list');
 		
-		$('#thumbnail-viewer .x-button').click(function() {
-			$('#thumbnail-viewer').fadeOut(200);
-		});
-
-		$.ajax(path, {
+		$.ajax('/browse' + path, {
 			success: function(data) {
 				loading = false;
 
@@ -102,9 +121,7 @@ $(function() {
 
 					case 'audio':
 						elem.click(function() {
-							if (confirm('Play audio?')) {
-								audioPlay(file.path);
-							}
+							audioPlay(file.path, file.name);
 						});
 						break;
 
@@ -114,7 +131,7 @@ $(function() {
 						});
 						break;
 					
-					default:
+						default:
 					}
 
 					if (file.error) {
@@ -122,7 +139,7 @@ $(function() {
 					}
 
 					if (file.type == 'video' || file.type == 'audio') {
-						var rawLink = $('<a />').attr('href', '/raw' + file.relPath).text('[RAW]');
+						var rawLink = $('<a style="color: inherit; margin-left: 1em; padding: 1em" />').attr('href', '/raw' + file.relPath).text('RAW');
 						rawLink.click(function(event) {
 							event.stopPropagation();
 						});
@@ -130,17 +147,13 @@ $(function() {
 					}
 
 					if (file.type == 'video') {
-						//var thumbLink = $('<a />').attr('href', '/thumbnail' + file.relPath).text('[Thumb]').attr('target', '_blank');
-						var thumbLink = $('<span />').text('[Thumb]');
+						var thumbLink = $('<span style="padding: 1em" />').text('Preview');
 						thumbLink.click(function(event) {
 							event.stopPropagation();
-							var path = '/thumbnail' + file.relPath;
-							$('#thumbnail-viewer img').attr('src', path).fadeIn(200);
-							$('#thumbnail-viewer').fadeIn(200);
+							showPreviewImage(file.relPath);
 						});
 						elem.append(thumbLink);
 					}
-
 
 					$('#file-list').append(elem);
 				});
@@ -149,11 +162,12 @@ $(function() {
 	}
 	
 
-	$videoPlayer.hide();
-	$audioPlayer.hide();
-	
+	$videoContainer.hide();
+	$audioContainer.hide();
+	$previewImage.hide();
+	$playerLoading.hide();
 
-	browseTo('/browse');
+	browseTo('/');
 
 	$('#settings-btn').click(function() {
 		$('#settings-container').fadeToggle();

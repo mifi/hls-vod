@@ -27,7 +27,7 @@ var playlistRetryTimeout = 60000;
 var playlistEndMinTime = 20000;
 
 
-var videoExtensions = ['.mp4','.3gp2','.3gp','.3gpp', '.3gp2','.amv','.asf','.avs','.dat','.dv', '.dvr-ms','.f4v','.m1v','.m2p','.m2ts','.m2v', '.m4v','.mkv','.mod','.mp4','.mpe','.mpeg1', '.mpeg2','.divx','.mpeg4','.mpv','.mts','.mxf', '.nsv','.ogg','.ogm','.mov','.qt','.rv','.tod', '.trp','.tp','.vob','.vro','.wmv','.web,', '.rmvb', '.rm','.ogv','.mpg', '.avi', '.mkv', '.wmv', '.asf', '.m4v', '.flv', '.mpg', '.mpeg', '.mov', '.vob', '.ts'];
+var videoExtensions = ['.mp4','.3gp2','.3gp','.3gpp', '.3gp2','.amv','.asf','.avs','.dat','.dv', '.dvr-ms','.f4v','.m1v','.m2p','.m2ts','.m2v', '.m4v','.mkv','.mod','.mp4','.mpe','.mpeg1', '.mpeg2','.divx','.mpeg4','.mpv','.mts','.mxf', '.nsv','.ogg','.ogm','.mov','.qt','.rv','.tod', '.trp','.tp','.vob','.vro','.wmv','.web,', '.rmvb', '.rm','.ogv','.mpg', '.avi', '.mkv', '.wmv', '.asf', '.m4v', '.flv', '.mpg', '.mpeg', '.mov', '.vob', '.ts', '.webm'];
 var audioExtensions = ['.mp3', '.aac', '.m4a'];
 
 // Program state
@@ -370,18 +370,12 @@ function browseDir(browsePath, response) {
 							fileObj.type = 'audio';
 							fileObj.path = path.join('/audio/' + relPath);
 						}
-						else {
-							fileObj.path = path.join('/audio/' + relPath);
-						}
 
 						fileObj.relPath = path.join('/', relPath);
-
 					}
 					else if (stats.isDirectory()) {
-						var relPath = path.join(browsePath, file);
-
 						fileObj.type = 'directory';
-						fileObj.path = path.join('/browse' + relPath);
+						fileObj.path = path.join(browsePath, file);
 					}
 
 					fileList.push(fileObj);
@@ -398,7 +392,10 @@ function handleThumbnailRequest(file, response) {
 	var fsPath = path.join(rootPath, file);
 
 	// http://superuser.com/questions/538112/meaningful-thumbnails-for-a-video-using-ffmpeg
-	var args = ['-ss', '00:00:20', '-i', fsPath, '-vf', 'select=gt(scene\,0.4)', '-vf', 'scale=iw/2:-1,crop=iw:iw/2', '-f', 'image2pipe', '-vframes', '1', '-'];
+	//var args = ['-ss', '00:00:20', '-i', fsPath, '-vf', 'select=gt(scene\,0.4)', '-vf', 'scale=iw/2:-1,crop=iw:iw/2', '-f', 'image2pipe', '-vframes', '1', '-'];
+	var args = ['-ss', '00:00:20', '-i', fsPath, '-vf', 'select=eq(pict_type\\,PICT_TYPE_I),scale=640:-1,tile=2x2', '-f', 'image2pipe', '-vframes', '1', '-'];
+
+	if (debug) console.log('Spawning thumb process');
 
 	var child = childProcess.spawn(transcoderPath, args, {cwd: outputPath, env: process.env});
 
@@ -562,8 +559,7 @@ app.get(/^\/hls\/file-(.+).m3u8/, function(request, response) {
 app.use('/hls/', express.static(__dirname + '/cache/'));
 
 app.get(/^\/thumbnail\//, function(request, response) {
-	var urlParsed = url.parse(request.url, true);
-	var file = path.relative('/thumbnail/', decodeURIComponent(urlParsed.pathname));
+	var file = path.relative('/thumbnail/', decodeURIComponent(request.path));
 	handleThumbnailRequest(file, response);
 });
 
@@ -579,8 +575,7 @@ app.get(/^\/browse/, function(request, response) {
 app.use('/raw/', express.static(rootPath));
 
 app.get(/^\/audio\//, function(request, response) {
-	var urlParsed = url.parse(request.url, true);
-	var relPath = path.relative('/audio/', decodeURIComponent(urlParsed.pathname));
+	var relPath = path.relative('/audio/', decodeURIComponent(request.path));
 	handleAudioRequest(relPath, request, response);
 });
 

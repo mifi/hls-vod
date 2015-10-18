@@ -1,7 +1,9 @@
 body {
+	padding-top: 3em;
 	background-color: #eee;
 	color: black;
 	-webkit-overflow-scrolling: touch;
+	font-family: 'Open Sans', sans-serif;
 }
 a, a:visited, a:active {
 	color: #91AFA8;
@@ -21,6 +23,7 @@ a, a:visited, a:active {
 	padding: .4em .5em;
 	white-space: nowrap;
 	overflow-x: auto;
+	overflow-y: hidden;
 }
 #file-list li img.thumbnail {
 	height: 50px;
@@ -36,18 +39,46 @@ a, a:visited, a:active {
 	padding: .2em .5em;
 	overflow: hidden;
 }
-#settings-btn {
-	cursor: pointer;
-}
-#settings-container {
-	display: none;
-}
+
 audio {
 	margin: auto;
 	display: block;
 }
 #video {
 	max-width: 100%;
+}
+#audio-container {
+	background: black;
+	width: 100%;
+	padding: 3em;
+}
+#audio-container audio {
+	width: 100%;
+}
+#audio-song-name {
+	color: white;
+	text-align: center;
+	font-size: 1.5em;
+	padding-bottom: 1em;
+}
+
+#preview-image {
+	background: black;
+	display: block;
+	width: 100%;
+	min-height: 400px;
+}
+
+#player-loading {
+	position: absolute;
+    z-index: 1;
+    font-size: 4em;
+	margin-top: -.5em;
+    text-align: center;
+    left: 0;
+    right: 0;
+    top: 50%;
+    color: white;
 }
 
 ::-webkit-scrollbar {
@@ -65,16 +96,9 @@ audio {
     max-width: 10px;
 }
 
-#thumbnail-viewer {
-	display: none;
-	position: fixed;
-	z-index: 10;
-	left: 3em;
-	right: 3em;
-	top: 3em;
-	padding: 1em;
-	background-color: rgba(255, 255, 255, .7);
+#settings-btn {
+	cursor: pointer;
 }
-#thumbnail-viewer img {
-	width: 100%;
+#settings-container {
+	display: none;
 }

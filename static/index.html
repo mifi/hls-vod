@@ -12,9 +12,12 @@
 	<link rel="apple-touch-icon" sizes="72x72" href="apple-touch-icon-144x144.png" />
 	<link rel="apple-touch-icon" sizes="114x114" href="apple-touch-icon-114x114.png" />
 	-->
+		
+	<link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
 
 	<link rel="stylesheet" href="bootstrap-3.3.5-dist/css/bootstrap.min.css">
 	<link rel="stylesheet" href="johndyer-mediaelement-2.18.2-0-g86b5dd5/mediaelementplayer.css" />
+	<link rel="stylesheet" href="font-awesome-4.4.0/css/font-awesome.min.css">
 
 	<link rel="stylesheet" type="text/css" href="main.css" />
 
@@ -28,12 +31,18 @@
 
 <body>
 	<div class="container">
-		<div style="text-align: center">
-			<audio></audio>
+		<div style="text-align: center; position: relative">
+			<div id="audio-container">
+				<div id="audio-song-name"></div>
+				<audio></audio>
+			</div>
 
 			<div id="video-container">
 				<video id="video"></video>
 			</div>
+			
+			<img alt="" id="preview-image" />
+			<div id="player-loading"><i class="fa fa-spinner fa-pulse"></i></div>
 		</div>
 
 		<div id="dir-header"></div>
@@ -59,18 +68,6 @@
 						</select>
 					</form>
 				</div>
-			</div>
-		</div>
-	</div>
-
-	<div id="thumbnail-viewer">
-		<div class="panel panel-default">
-			<div class="panel-heading">
-				<div class="x-button"><span class="glyphicon glyphicon-remove"></span></div>
-			</div>
-
-			<div class="panel-body">
-				<img alt="" />
 			</div>
 		</div>
 	</div>
