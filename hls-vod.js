@@ -42,7 +42,7 @@ var io = null;
 
 // We have to apply some hacks to the playlist
 function withModifiedPlaylist(readStream, eachLine, done) {
-	var rl = readLine.createInterface({input: readStream});
+	var rl = readLine.createInterface({terminal: false, input: readStream});
 	
 	var foundPlaylistType = false;
 
@@ -148,7 +148,7 @@ function pollForPlaylist(file, response, playlistPath) {
 	var numTries = 0;
 
 	function checkPlaylistCount(stream, cb) {
-		var rl = readLine.createInterface({ input: stream });
+		var rl = readLine.createInterface({terminal: false, input: stream});
 		var count = 0;
 		var need = 3;
 		var found = false;
