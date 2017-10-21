@@ -1,6 +1,27 @@
 {
   "name": "hls-vod",
-  "version": "0.2.0",
+  "description": "Node CLI for on-demand encoding and streaming of videos",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mifi/hls-vod.git"
+  },
+  "author": {
+    "name": "Mikael Finstad",
+    "email": "finstaden@gmail.com",
+    "url": "mifi.no"
+  },
+  "license": "MIT",
+  "files": [
+    "hls-vod.js",
+    "static",
+  ],
+  "bin": {
+    "hls-vod": "hls-vod.js"
+  },
+  "engines": {
+    "node": ">=4"
+  },
   "dependencies": {
     "body-parser": "^1.14.1",
     "express": "^4.13.3",
