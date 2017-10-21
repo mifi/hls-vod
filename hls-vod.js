@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var childProcess = require('child_process');
 var http = require('http');
 var url = require('url');
