@@ -9,6 +9,8 @@ HTTP Live Streaming with on-the-fly encoding of any video file for Apple TV, iPh
 
 `hls-vod` is a server application lets you stream your whole video collection on-demand, regardless of format, to your iOS devices, playable from Safari, working with AirPlay as well. It does this by invoking ffmpeg/VLC on the fly through the command line, and presenting a web based GUI for playback.
 
+Version 1.0 is out with simpler usage 🎉
+
 Requirements
 ------------
 - [node.js](https://nodejs.org/en/) (Tested on >4)
