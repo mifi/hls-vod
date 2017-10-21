@@ -25,7 +25,7 @@ $(function() {
 
 	function audioPlay(path, name) {
 		$('#audio-song-name').text(name);
-		
+
 		videoStop();
 		audioStop();
 		hidePreviewImage();
@@ -46,7 +46,7 @@ $(function() {
 
 		if (mediaElement) {
 			mediaElement.pause();
-			
+
 			mediaElement.setSrc(path);
 			mediaElement.play();
 		}
@@ -54,11 +54,12 @@ $(function() {
 			var $video = $('#video');
 			$video[0].src = path;
 			$video.mediaelementplayer({
+				stretching: 'responsive',
 				success: function (mediaElement2, domObject) {
 			        mediaElement = mediaElement2;
 					mediaElement.play();
 			    },
-			    error: function (mediaeElement, err) { 
+			    error: function (mediaeElement, err) {
 					console.log('Error loading media element');
 			    }
 			});
@@ -80,21 +81,21 @@ $(function() {
 		videoStop();
 		audioStop();
 	}
-	
+
 	function updateActiveTranscodings() {
 		$('#transcoders').text('Active transcoders: ' + activeTranscodings.length).fadeIn(200);
 		setTimeout(function() {
 			$('#transcoders').fadeOut(200);
 		}, 5000);
 	}
-	
+
 
 	function browseTo(path) {
 		if (loading) return;
 		loading = true;
 
 		var $fileList = $('#file-list');
-		
+
 		$.ajax('/browse' + path, {
 			success: function(data) {
 				loading = false;
@@ -134,7 +135,7 @@ $(function() {
 							browseTo(file.path);
 						});
 						break;
-					
+
 						default:
 					}
 
@@ -164,7 +165,7 @@ $(function() {
 			}
 		});
 	}
-	
+
 
 	$('#settings-btn').click(function() {
 		$('#settings-container').fadeToggle();
@@ -185,17 +186,17 @@ $(function() {
 	$.get('/settings', function(data) {
 		$('#settings-container select[name=videoBitrate]').val(data.videoBitrate);
 	});
-	
-	
+
+
 	var socket = io.connect();
 
 	socket.on('updateActiveTranscodings', function(data) {
 		activeTranscodings = data;
 		updateActiveTranscodings();
 	});
-	
+
 	browseTo('/');
-	
+
 	$videoContainer.hide();
 	$audioContainer.hide();
 	$previewImage.hide();

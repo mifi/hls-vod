@@ -53,9 +53,6 @@ audio {
 	margin: auto;
 	display: block;
 }
-#video {
-	max-width: 100%;
-}
 #audio-container {
 	background: black;
 	width: 100%;
