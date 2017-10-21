@@ -1,12 +1,13 @@
 var childProcess = require('child_process');
 var http = require('http');
 var url = require('url');
-var fs = require('fs');
 var path = require('path');
+var os = require('os');
 var readLine = require('readline');
 var _ = require('underscore');
 
 // 3rd party
+var fs = require('fs-extra');
 var sanitize = require('validator').sanitize;
 var wrench = require('wrench');
 var express = require('express');
@@ -21,7 +22,7 @@ var audioBitrate = 128;
 var targetWidth = 1280;
 var searchPaths = [];
 var rootPath = null;
-var outputPath = './cache';
+var outputPath;
 var transcoderPath = 'ffmpeg';
 var transcoderType = 'ffmpeg';
 var processCleanupTimeout = 6 * 60 * 60 * 1000;
@@ -43,7 +44,7 @@ var io = null;
 // We have to apply some hacks to the playlist
 function withModifiedPlaylist(readStream, eachLine, done) {
 	var rl = readLine.createInterface({terminal: false, input: readStream});
-	
+
 	var foundPlaylistType = false;
 
 	rl.on('line', function (line) {
@@ -53,7 +54,7 @@ function withModifiedPlaylist(readStream, eachLine, done) {
 			eachLine('#EXT-X-PLAYLIST-TYPE:EVENT');
 			foundPlaylistType = true;
 		}
-		
+
 		// Due to what seems like a bug in Apples implementation, if #EXT-X-ENDLIST is included too fast, it seems the player will hang. Removing it will cause the player to re-fetch the playlist once more, which seems to prevent the bug.
 		if (line.match('^#EXT-X-ENDLIST') && new Date().getTime() - encodingStartTime.getTime() < playlistEndMinTime) {
 			console.log('File was encoded too fast, skiping END tag');
@@ -77,6 +78,8 @@ function updateActiveTranscodings() {
 function spawnNewProcess(file, playlistPath) {
 	var playlistFileName = 'stream.m3u8';
 
+	console.log({ file });
+
 	if (transcoderType === 'ffmpeg') {
 		// https://www.ffmpeg.org/ffmpeg-formats.html#segment
 		var tsOutputFormat = 'stream%05d.ts';
@@ -96,31 +99,33 @@ function spawnNewProcess(file, playlistPath) {
 	else {
 		// https://wiki.videolan.org/Documentation:Streaming_HowTo/Streaming_for_the_iPhone/
 		var tsOutputFormat = 'stream#####.ts';
-		
+
 		var args = [
 			'-I' ,'dummy', '--no-loop', '--no-repeat', file, 'vlc://quit',
-			'--sout=#transcode{width=' + targetWidth + ',vcodec=h264,vb=' + videoBitrate + ',fps=25' +
-			//',venc=x264{aud,profile=baseline,level=30,keyint=30,ref=1,preset=superfast},' +
-			',venc=x264{aud,profile=baseline,level=30,preset=superfast},' +
-			'acodec=mp3,ab=' + audioBitrate + ',channels=2,audio-sync}:std{access=livehttp{seglen=10,delsegs=false,numsegs=0,index=' + playlistFileName + ',index-url=' + tsOutputFormat + '},' +
-			'mux=ts{use-key-frames},dst=' + tsOutputFormat + '}'
+			`--sout=#transcode{
+				width=${targetWidth},fps=25,vcodec=h264,vb=${videoBitrate},
+				venc=x264{aud,profile=baseline,level=30,keyint=30,ref=1,superfast},
+				acodec=mp3,ab=${audioBitrate},channels=2,audio-sync
+			}:std{
+				access=livehttp{seglen=10,numsegs=0,index=${playlistFileName},index-url=${tsOutputFormat}},
+				mux=ts{use-key-frames},dst=${tsOutputFormat}
+			}`.replace(/\s/g, ''),
 		];
 	}
 
+	console.log('Exec:', transcoderPath, args.join(' '));
 	var encoderChild = childProcess.spawn(transcoderPath, args, {cwd: outputPath, env: process.env});
-
 	console.log('Spawned transcoder instance');
+
 	if (debug) console.log(transcoderPath + ' ' + args.join(' '));
 
 	encoderProcesses[file] = encoderChild;
 	updateActiveTranscodings();
 	currentFile = file;
 
-	if (debug) {
-		encoderChild.stderr.on('data', function(data) {
-			console.log(data.toString());
-		});
-	}
+	encoderChild.stderr.on('data', function(data) {
+		if (debug) console.log(data.toString());
+	});
 
 	encoderChild.on('exit', function(code) {
 		if (code == 0) {
@@ -172,7 +177,7 @@ function pollForPlaylist(file, response, playlistPath) {
 
 	function retry() {
 		numTries++;
-		if (debug) console.log('Retrying playlist file...');		
+		if (debug) console.log('Retrying playlist file...');
 		setTimeout(tryOpenFile, playlistRetryDelay);
 	}
 
@@ -239,7 +244,7 @@ function killProcess(processToKill, callback) {
 
 function handlePlaylistRequest(file, response) {
 	if (debug) console.log('Playlist request: ' + file)
-	
+
 	if (!file) {
 		request.writeHead(400);
 		request.end();
@@ -260,7 +265,7 @@ function handlePlaylistRequest(file, response) {
 		lock = true;
 
 		console.log('New file to encode chosen');
-		
+
 		encodingStartTime = new Date();
 
 		function startNewEncoding() {
@@ -409,11 +414,10 @@ function handleThumbnailRequest(file, response) {
 
 	var child = childProcess.spawn(transcoderPath, args, {cwd: outputPath, env: process.env});
 
-	if (debug) {
-		child.stderr.on('data', function(data) {
-			console.log(data.toString());
-		});
-	}
+	child.stderr.on('data', function(data) {
+		if (debug) console.log(data.toString());
+	});
+
 	response.setHeader('Content-Type', 'image/jpeg');
 	child.stdout.pipe(response);
 
@@ -442,11 +446,9 @@ function handleAudioRequest(relPath, request, response) {
 		'-f', 'mp3', '-'
 	]);
 
-	if (debug) {
-		encoderChild.stderr.on('data', function(data) {
-			console.log(data.toString());
-		});
-	}
+	encoderChild.stderr.on('data', function(data) {
+		if (debug) console.log(data.toString());
+	});
 
 	encoderChild.stdout.on('data', function() {
 		if (!headerSent) {
@@ -475,7 +477,7 @@ function init() {
 			+ ' --root-path PATH'
 			+ ' [--search-path PATH1 [--search-path PATH2 [...]]]'
 			+ ' [--port PORT]'
-			+ ' [--cache-dir PATH]'
+			+ ' [--cache-path PATH]'
 			+ ' [--transcoder-path PATH]'
 			+ ' [--transcoder-type ffmpeg|vlc]'
 			+ ' [--debug]'
@@ -507,7 +509,7 @@ function init() {
 			searchPaths.push(process.argv[++i]);
 			break;
 
-			case '--cache-dir':
+			case '--cache-path':
 			if (process.argv.length <= i+1) {
 				exitWithUsage(process.argv);
 			}
@@ -539,18 +541,23 @@ function init() {
 			break;
 		}
 	}
-	
-	console.log(rootPath + ' ' + searchPaths);
 
-	if (!rootPath) {
-		exitWithUsage(process.argv);
+	if (!rootPath) rootPath = path.resolve('.');
+
+	console.log('Serving', rootPath, 'Search paths:', searchPaths);
+	console.log('Search paths:', searchPaths);
+
+	if (!outputPath) outputPath = path.join(os.tmpdir(), 'hls-vod-cache');
+	fs.mkdirsSync(outputPath);
+
+	if (transcoderType === 'vlc') {
+		const guessVlcPath = '/Applications/VLC.app/Contents/MacOS/VLC';
+		if (fs.existsSync(guessVlcPath)) {
+			transcoderPath = guessVlcPath;
+		}
 	}
 
-	fs.mkdir(outputPath, function(err, data) {
-		if (err && err.code == 'EEXIST') return;
-		else if (err) return console.log(err);
-		console.log('Created directory ' + outputPath);
-	});
+	console.log('Created directory ' + outputPath);
 
 	initExpress();
 }
@@ -567,16 +574,16 @@ function initExpress() {
 		next();
 	});
 
-	app.use('/', serveStatic(__dirname + '/static'));
+	app.use('/', serveStatic(path.join(__dirname, 'static')));
 
 	// Flash plugin needs path to end with .m3u8, so we hack it with file name url encoded inside the path component!
 	// In addition, m3u8 file has to be under the same path as the TS-files, so they can be linked relatively in the m3u8 file
-	app.get(/^\/hls\/file-(.+).m3u8/, function(request, response) {
+	app.get(/^\/hls\/file-(.+)\.m3u8/, function(request, response) {
 		var filePath = decodeURIComponent(request.params[0]);
 		handlePlaylistRequest(filePath, response);
 	});
 
-	app.use('/hls/', serveStatic(__dirname + '/cache/'));
+	app.use('/hls/', serveStatic(outputPath));
 
 	app.get(/^\/thumbnail\//, function(request, response) {
 		var file = path.relative('/thumbnail/', decodeURIComponent(request.path));
@@ -617,9 +624,10 @@ function initExpress() {
 		}));
 		response.end();
 	});
-	
+
 
 	server.listen(listenPort);
+	console.log('Listening to port', listenPort);
 }
 
 
