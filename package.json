@@ -14,7 +14,7 @@
   "license": "MIT",
   "files": [
     "hls-vod.js",
-    "static",
+    "static"
   ],
   "bin": {
     "hls-vod": "hls-vod.js"
