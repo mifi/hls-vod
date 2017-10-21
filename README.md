@@ -3,6 +3,10 @@ hls-vod 📺
 
 HTTP Live Streaming with on-the-fly encoding of any video file for Apple TV, iPhone, iPad, iPod, Mac Safari and other devices that support HTTP Live Streaming. Also supports Android and normal desktop browsers through the use of [mediaelement.js](http://www.mediaelementjs.com/)
 
+<a target='_blank' rel='nofollow' href='https://app.codesponsor.io/link/a3DabSrJLUgh3DWQzN9s8KRM/mifi/hls-vod'>
+  <img alt='Sponsor' width='888' height='68' src='https://app.codesponsor.io/embed/a3DabSrJLUgh3DWQzN9s8KRM/mifi/hls-vod.svg' />
+</a>
+
 `hls-vod` is a server application lets you stream your whole video collection on-demand, regardless of format, to your iOS devices, playable from Safari, working with AirPlay as well. It does this by invoking ffmpeg/VLC on the fly through the command line, and presenting a web based GUI for playback.
 
 Requirements
