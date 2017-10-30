@@ -13,8 +13,8 @@ Version 1.0 is out with simpler usage 🎉
 
 Requirements
 ------------
-- [node.js](https://nodejs.org/en/) (Tested on >4)
-- [ffmpeg](https://ffmpeg.org/) (needs >v1, must be built with libx264 and libmp3lame) OR [VLC](https://www.videolan.org/)
+- [node.js](https://nodejs.org/en/) (Tested on >=4)
+- [ffmpeg](https://ffmpeg.org/) (needs >=v1, must be built with libx264 and libmp3lame) OR [VLC](https://www.videolan.org/)
 - Tested on Linux and Mac, but it might work on Windows too.
 
 Installation
