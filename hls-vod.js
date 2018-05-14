@@ -164,7 +164,7 @@ function pollForPlaylist(file, response, playlistPath) {
 			if (line.match('^#EXTINF:[0-9]+')) count++;
 			if (count >= need) {
 				found = true;
-				rl.close();
+				
 			}
 		});
 		rl.on('close', function() {
