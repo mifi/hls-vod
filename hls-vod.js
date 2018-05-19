@@ -119,6 +119,8 @@ function spawnNewProcess(file, playlistPath) {
 	var encoderChild = childProcess.spawn(transcoderPath, args, {cwd: outputPath, env: process.env});
 	console.log('Spawned transcoder instance');
 
+	encoderChild.on('error', err => console.error(err));
+
 	if (debug) console.log(transcoderPath + ' ' + args.join(' '));
 
 	encoderProcesses[file] = encoderChild;
