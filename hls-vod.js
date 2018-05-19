@@ -10,7 +10,6 @@ var _ = require('underscore');
 
 // 3rd party
 var fs = require('fs-extra');
-var sanitize = require('validator').sanitize;
 var wrench = require('wrench');
 var express = require('express');
 var serveStatic = require('serve-static');
