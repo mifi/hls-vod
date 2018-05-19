@@ -294,43 +294,6 @@ function handlePlaylistRequest(file, response) {
 	}
 }
 
-function listFiles(response) {
-	var searchRegex = '(' + videoExtensions.join('|') + ')$';
-
-	if (searchPaths.length === 0) response.end();
-
-	searchPaths.forEach(function(searchPath) {
-		wrench.readdirRecursive(searchPath, function(err, curFiles) {
-			if (err) {
-				console.log(err);
-				return;
-			}
-			if (curFiles == null) {
-				response.end(); // No more files
-				return;
-			}
-
-			curFiles.forEach(function(filePath) {
-				filePath = path.join(path.relative(rootPath, searchPath), filePath);
-				if (filePath.match(searchRegex)) {
-					var friendlyName = filePath;
-					var matches = friendlyName.match(/\/?([^/]+)\.[a-z0-9]+$/);
-					if (matches && matches.length == 2) {
-						friendlyName = matches[1];
-					}
-
-					response.write(
-						'<a href="/hls/file-' + encodeURIComponent(filePath) + '.m3u8' + '" title="' + sanitize(filePath).entityEncode() + '">'
-						+ sanitize(friendlyName).entityEncode() + '</a>'
-						+ ' (' + sanitize(path.extname(filePath)).entityEncode() + ')'
-						+ ' (<a href="' + sanitize(path.join('/raw', filePath)).entityEncode() + '">Raw</a>)<br />');
-				}
-			});
-		});
-	});
-}
-
-
 function browseDir(browsePath, response) {
 	browsePath = path.join('/', browsePath); // Remove ".." etc
 	fsBrowsePath = path.join(rootPath, browsePath);
@@ -592,10 +555,6 @@ function initExpress() {
 	app.get(/^\/thumbnail\//, function(request, response) {
 		var file = path.relative('/thumbnail/', decodeURIComponent(request.path));
 		handleThumbnailRequest(file, response);
-	});
-
-	app.get('/list', function(request, response) {
-		listFiles(response);
 	});
 
 	app.get(/^\/browse/, function(request, response) {
