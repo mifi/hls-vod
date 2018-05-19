@@ -388,10 +388,6 @@ function handleThumbnailRequest(file, response) {
 	response.setHeader('Content-Type', 'image/jpeg');
 	child.stdout.pipe(response);
 
-	child.on('exit', function(code) {
-		response.end();
-	});
-
 	setTimeout(function() {
 		child.kill('SIGKILL');
 	}, 10000);
