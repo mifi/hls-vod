@@ -342,7 +342,7 @@ function browseDir(browsePath, response) {
 					}
 					else if (stats.isFile()) {
 						var relPath = path.join(browsePath, file);
-						var extName = path.extname(file);
+						var extName = path.extname(file).toLowerCase();
 
 						if (videoExtensions.indexOf(extName) != -1) {
 							fileObj.type = 'video';
