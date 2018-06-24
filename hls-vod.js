@@ -165,7 +165,9 @@ function pollForPlaylist(file, response, playlistPath) {
 			if (line.match('^#EXTINF:[0-9]+')) count++;
 			if (count >= need) {
 				found = true;
-				rl.close();
+				// We should have closed here but it causes some issues on win10.
+				// See https://github.com/mifi/hls-vod/pull/9
+				// rl.close();
 			}
 		});
 		rl.on('close', function() {
