@@ -28,7 +28,7 @@
     "express": "^4.13.3",
     "fs-extra": "^4.0.2",
     "serve-static": "^1.10.0",
-    "socket.io": "^2.0.3",
+    "socket.io": "^3.0.0",
     "underscore": "^1.8.3",
     "wrench": "1.4.4"
   }
